@@ -156,8 +156,8 @@ async def async_main() -> None:
         else:
             await bunkrr_client.upload_files(args.file, folder=args.folder)
     finally:
-        if not bunkrr_client.api.session.closed:
-            await bunkrr_client.api.session.close()
+        if not bunkrr_client.api._session.closed:
+            await bunkrr_client.api._session.close()
         for server_session in bunkrr_client.api.server_sessions.values():
             if not server_session.closed:
                 server_session.close()

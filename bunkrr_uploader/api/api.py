@@ -8,11 +8,12 @@ from pathlib import Path
 from pprint import pformat
 from typing import Any, BinaryIO, Optional, Union
 
-import aiohttp
+from aiohttp import ClientSession
 from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
+from yarl import URL
 
-from .types import (
+from bunkrr_uploader.api.types.responses import (
     AlbumsResponse,
     CheckResponse,
     CreateAlbumResponse,
@@ -20,7 +21,7 @@ from .types import (
     UploadResponse,
     VerifyTokenResponse,
 )
-from .util import ProgressFileReader, TqdmUpTo
+from bunkrr_uploader.util import ProgressFileReader, TqdmUpTo
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +32,14 @@ class BunkrrAPI:
         token: str,
         max_connections: int = 2,
         retries: int = 2,
-        options: Optional[dict[str, Any]] = None,
+        options: dict[str, str] | None = None,
     ):
         if options is None:
             options = {}
 
-        self.token = token
-        self.url = "https://app.bunkrr.su/"
-        self.download_url_base = "https://bunkrr.ru/d/"
+        self._token = token
+        self.url = URL("https://app.bunkrr.su/")
+        self.download_url_base = URL("https://bunkrr.ru/d/")
 
         # These all need to be initialized later on before the API is used
         self.max_file_size = None
@@ -47,12 +48,12 @@ class BunkrrAPI:
 
         self.options = options
 
-        self.session_headers = {
+        self._session_headers = {
             "Accept": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "token": self.token,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+            "token": self._token,
         }
-        self.session = aiohttp.ClientSession("https://app.bunkrr.su", headers=self.session_headers)
+        self._session = ClientSession(self.url, headers=self._session_headers)
 
         self.server_sessions = {}
         self.created_folders = {}
@@ -61,23 +62,23 @@ class BunkrrAPI:
         self.max_chunk_retries = options.get("chunk_retries") or 1
 
     async def get_check(self) -> CheckResponse:
-        async with self.session.get("/api/check") as resp:
+        async with self._session.get("/api/check") as resp:
             response = await resp.json()
             return response
 
     async def get_node(self) -> NodeResponse:
-        async with self.session.get("/api/node") as resp:
+        async with self._session.get("/api/node") as resp:
             response = await resp.json()
             return response
 
     async def verify_token(self) -> VerifyTokenResponse:
-        data = {"token": self.token}
-        async with self.session.post("/api/tokens/verify", data=data) as resp:
+        data = {"token": self._token}
+        async with self._session.post("/api/tokens/verify", data=data) as resp:
             response = await resp.json()
             return response
 
     async def get_albums(self) -> AlbumsResponse:
-        async with self.session.get("/api/albums") as resp:
+        async with self._session.get("/api/albums") as resp:
             response = await resp.json()
             return response
 
@@ -85,7 +86,7 @@ class BunkrrAPI:
         self, name: str, description: str, public: bool = True, download: bool = True
     ) -> CreateAlbumResponse:
         data = {"name": name, "description": description, "public": public, "download": download}
-        async with self.session.post("/api/albums", json=data) as resp:
+        async with self._session.post("/api/albums", json=data) as resp:
             response = await resp.json()
             return response
 
@@ -180,7 +181,7 @@ class BunkrrAPI:
         if server not in self.server_sessions:
             with tqdm.external_write_mode():
                 logger.info(f"Using new server connection to {server}")
-            self.server_sessions[server] = aiohttp.ClientSession(server, headers=self.session_headers)
+            self.server_sessions[server] = aiohttp.ClientSession(server, headers=self._session_headers)
 
         session = self.server_sessions[server]
 
@@ -268,6 +269,6 @@ class BunkrrAPI:
             return responses
         finally:
             # This should happen in the API client itself
-            await self.session.close()
+            await self._session.close()
             for server_session in self.server_sessions.values():
                 await server_session.close()

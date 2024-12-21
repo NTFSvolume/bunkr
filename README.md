@@ -9,6 +9,7 @@ WIP
 - Progress bars
 
 # TODO
+- [ ] Use nicegui
 - [ ] Slit into API and client
 - [ ] Migrate to Nicequests
 - [ ] Upload logging
