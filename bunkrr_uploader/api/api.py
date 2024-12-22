@@ -32,7 +32,7 @@ class BunkrrAPI:
         self._chunk_size: int = chunk_size # type: ignore
         self._info = None
         self._semaphore = asyncio.Semaphore(self.RATE_LIMIT)
-        self._server_sessions: dict [str, ClientSession] = {}
+        self._server_sessions: dict [URL, ClientSession] = {}
 
     @property
     def info(self) -> CheckResponse:
@@ -53,7 +53,7 @@ class BunkrrAPI:
         data = data or {}
         if isinstance(data, dict):
             data["token"] = data.get("token") or self._token
-        session = self.server_sessions.get(server) or self._session
+        session = self.server_sessions.get(server) or self._session # type: ignore
         async with self._semaphore, session.post(path, data=data) as resp:
             resp.raise_for_status()
             response = await resp.json()

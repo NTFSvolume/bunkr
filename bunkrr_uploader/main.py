@@ -4,7 +4,7 @@ from pathlib import Path
 
 from bunkrr_uploader.cli import cli
 from bunkrr_uploader.client import BunkrrUploader
-from bunkrr_uploader.logger import USE_MAIN_NAME, setup_logger
+from bunkrr_uploader.logger import LogConfig, setup_logger
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 async def async_main() -> None:
     args = cli()
     setup_logger(
-        log_file=USE_MAIN_NAME,
+        log_file=LogConfig.USE_MAIN_NAME,
         log_level=logging.DEBUG if args.verbose else logging.INFO,
         logs_folder_overrride=Path(__file__).parents[-3] / "logs",
     )
