@@ -16,6 +16,7 @@ class ChunkInfo:
     data: bytes
     index: int
     total: int
+    offset: int
 
     @property
     def byte_range(self):
