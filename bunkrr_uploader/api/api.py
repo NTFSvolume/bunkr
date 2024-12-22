@@ -1,21 +1,20 @@
 import asyncio
+import logging
+from pathlib import Path
 
+import aiofiles
 from aiohttp import ClientSession, FormData
 from yarl import URL
-import logging
 
+from bunkrr_uploader.api.types.files import FileInfo
 from bunkrr_uploader.api.types.responses import (
     AlbumsResponse,
     CheckResponse,
     CreateAlbumResponse,
     NodeResponse,
-    VerifyTokenResponse,
     UploadResponse,
+    VerifyTokenResponse,
 )
-
-from bunkrr_uploader.api.types.files import FileInfo
-from pathlib import Path
-import aiofiles
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class BunkrrAPI:
         self._chunk_size: int = chunk_size # type: ignore
         self._info = None
         self._semaphore = asyncio.Semaphore(self.RATE_LIMIT)
-        self._server_sessions = {}
+        self._server_sessions: dict [str, ClientSession] = {}
 
     @property
     def info(self) -> CheckResponse:
@@ -66,6 +65,13 @@ class BunkrrAPI:
         self._chunk_size = self._chunk_size or self.info.chunkSize.default
         assert 0 < self._chunk_size <= self.info.chunkSize.max
         await self.verify_token()
+
+    async def close(self):
+        if not self._session.closed:
+            await self._session.close()
+        for server_session in self._server_sessions.values():
+            if not server_session.closed:
+                await server_session.close()
 
     """----------------------------------------------------------------------------------------------"""
 

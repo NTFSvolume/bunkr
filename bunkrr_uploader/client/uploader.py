@@ -162,7 +162,8 @@ class BunkrrUploader:
             existing_albums = await self._api.get_albums()
             album = next((x for x in existing_albums.albums if x.name == album_name), None)
             if not album:
-                logger.debug(f"album '{album_name}' does not exists, creating")
+                msg = f"album '{album_name}' does not exists, creating"
+                logger.debug(msg)
                 album = await self._api.create_album(album_name, description=album_name)
             album_id = album.id
             logger.debug(f"album id: '{album_id}'")
@@ -179,3 +180,6 @@ class BunkrrUploader:
             responses.append(response)
 
         return responses
+    
+    async def close(self)-> None:
+       await self._api.close()
