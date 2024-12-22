@@ -10,6 +10,7 @@ from uuid import uuid4
 if TYPE_CHECKING:
     from pathlib import Path
 
+
 @dataclass(frozen=True)
 class ChunkInfo:
     data: bytes
@@ -18,21 +19,22 @@ class ChunkInfo:
 
     @property
     def byte_range(self):
-        start=self.index * len(self.data)
-        end=(self.index + 1) * len(self.data)
+        start = self.index * len(self.data)
+        end = (self.index + 1) * len(self.data)
         return (start, end)
+
 
 @dataclass
 class FileInfo:
     path: Path
     album_id: str | None = None
     max_filename_length: int = 240
-    upload_success: bool = field(init=False, default = False)
+    upload_success: bool = field(init=False, default=False)
 
     def __post_init__(self):
         self.original_name = self.path.name
         self.upload_name = self.original_name
-        if len(self.upload_name)> self.max_filename_length:
+        if len(self.upload_name) > self.max_filename_length:
             max_stem_length = self.max_filename_length - len(self.path.suffix) - 2
             new_stem = self.upload_name[:max_stem_length] + ".."
             self.upload_name = f"{new_stem}{self.path.suffix}"
@@ -51,5 +53,3 @@ class FileInfo:
             "filelength": "",
             "age": "",
         }
-
-

@@ -21,7 +21,6 @@ class FileIdentifierLength(BaseModel):
     force: bool
 
 
-
 class StripTags(BaseModel):
     blacklistExtensions: set[str]
     default: bool
@@ -42,9 +41,11 @@ class BunkrrResponse(BaseModel):
     description: str = ""
     success: bool = True
 
+
 class UploadItemResponse(BunkrrResponse):
     name: str
     url: HttpURL | None
+
 
 class UploadResponse(BunkrrResponse):
     files: list[UploadItemResponse]
@@ -66,7 +67,6 @@ class AlbumItemResponse(BunkrrResponse):
     zipSize: ByteSize | None
 
 
-
 class AlbumsResponse(BunkrrResponse):
     albums: list[AlbumItemResponse]
     count: int
@@ -74,6 +74,7 @@ class AlbumsResponse(BunkrrResponse):
 
 class CreateAlbumResponse(BunkrrResponse):
     id: int
+
 
 class VerifyTokenResponse(BunkrrResponse):
     defaultRetentionPeriod: timedelta
@@ -94,6 +95,6 @@ class CheckResponse(BunkrrResponse):
     stripTags: StripTags
     temporaryUploadAges: list[int]
 
+
 class NodeResponse(BunkrrResponse):
     url: HttpURL
-

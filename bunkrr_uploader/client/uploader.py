@@ -109,7 +109,7 @@ class BunkrrUploader:
             try:
                 if file_info.size <= self._chunk_size:
                     return await self._api.upload(file_info, server)
-                elif not finish_chunks:
+                if not finish_chunks:
                     async for chunk in self._iter_chunks_read(file_info):
                         await self._upload_chunk(file_info, chunk, server)
                     finish_chunks = True
@@ -180,6 +180,6 @@ class BunkrrUploader:
             responses.append(response)
 
         return responses
-    
-    async def close(self)-> None:
-       await self._api.close()
+
+    async def close(self) -> None:
+        await self._api.close()

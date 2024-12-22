@@ -18,8 +18,10 @@ from bunkrr_uploader.api.types.responses import (
 
 logger = logging.getLogger(__name__)
 
+
 class BunkrrAPI:
     RATE_LIMIT = 50
+
     def __init__(self, token: str, chunk_size: int | None = None):
         self._token = token
         self._api_entrypoint = URL("https://dash.bunkrr.cr/api")
@@ -29,14 +31,14 @@ class BunkrrAPI:
             "token": self._token,
         }
         self._session = ClientSession(self._api_entrypoint, headers=self._session_headers)
-        self._chunk_size: int = chunk_size # type: ignore
+        self._chunk_size: int = chunk_size  # type: ignore
         self._info = None
         self._semaphore = asyncio.Semaphore(self.RATE_LIMIT)
-        self._server_sessions: dict [URL, ClientSession] = {}
+        self._server_sessions: dict[URL, ClientSession] = {}
 
     @property
     def info(self) -> CheckResponse:
-        return self._info # type: ignore
+        return self._info  # type: ignore
 
     @property
     def server_sessions(self):
@@ -53,7 +55,7 @@ class BunkrrAPI:
         data = data or {}
         if isinstance(data, dict):
             data["token"] = data.get("token") or self._token
-        session = self.server_sessions.get(server) or self._session # type: ignore
+        session = self.server_sessions.get(server) or self._session  # type: ignore
         async with self._semaphore, session.post(path, data=data) as resp:
             resp.raise_for_status()
             response = await resp.json()
@@ -88,8 +90,8 @@ class BunkrrAPI:
         response = await self._get_json("/node")
         return NodeResponse(**response)
 
-    async def verify_token(self,*, token: str | None = None) -> VerifyTokenResponse:
-        response = await self._post("/tokens/verify", data = {"token": token})
+    async def verify_token(self, *, token: str | None = None) -> VerifyTokenResponse:
+        response = await self._post("/tokens/verify", data={"token": token})
         return VerifyTokenResponse(**response)
 
     async def get_albums(self) -> AlbumsResponse:
@@ -108,17 +110,15 @@ class BunkrrAPI:
         response = await self._post("/albums", data=data)
         return CreateAlbumResponse(**response)
 
-    async def upload(self, file: FileInfo | Path, server: URL,  album_id: str | None = None) -> UploadResponse:
-        if isinstance(file,Path):
+    async def upload(self, file: FileInfo | Path, server: URL, album_id: str | None = None) -> UploadResponse:
+        if isinstance(file, Path):
             file = FileInfo(file, album_id=album_id)
         file_info = file
         assert file_info.size <= self.info.maxSize
         async with aiofiles.open(file_info.path, "rb") as file_data:
             chunk_data = await file_data.read(self._chunk_size)
         data = FormData()
-        data.add_field(
-            "files[]", chunk_data, filename=file_info.path.name, content_type=file_info.mimetype
-        )
+        data.add_field("files[]", chunk_data, filename=file_info.path.name, content_type=file_info.mimetype)
         if album_id:
             data.add_field("albumid", file_info.album_id)
 

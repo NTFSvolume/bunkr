@@ -1,1 +1,1 @@
-from .uploader import BunkrrUploader
+from .uploader import BunkrrUploader as BunkrrUploader
