@@ -24,7 +24,7 @@ class BunkrrAPI:
 
     def __init__(self, token: str, chunk_size: int | None = None):
         self._token = token
-        self._api_entrypoint = URL("https://dash.bunkrr.cr/api")
+        self._api_entrypoint = URL("https://dash.bunkrr.cr/api/")
         self._session_headers = {
             "Accept": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",

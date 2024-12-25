@@ -16,7 +16,8 @@ CONSOLE_THEME = Theme(
 )
 
 RICH_CONSOLE = Console(theme=CONSOLE_THEME)
-RICH_HANDLER_CONFIG: dict = {"show_time": False, "rich_tracebacks": True, "tracebacks_show_locals": False}
+RICH_HANDLER_CONSOLE_CONFIG: dict = {"show_time": False, "rich_tracebacks": False, "tracebacks_show_locals": False}
+RICH_HANDLER_FILE_CONFIG: dict = {"show_time": True, "rich_tracebacks": True, "tracebacks_show_locals": True}
 
 
 def setup_logger(
@@ -29,7 +30,7 @@ def setup_logger(
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     if use_rich_console:
-        console_handler = RichHandler(**RICH_HANDLER_CONFIG, level=log_level, console=RICH_CONSOLE)
+        console_handler = RichHandler(**RICH_HANDLER_CONSOLE_CONFIG, level=log_level, console=RICH_CONSOLE)
         logger.addHandler(console_handler)
 
     project_folder = Path(__file__).parent
@@ -40,7 +41,7 @@ def setup_logger(
     log_file_path = log_file_path.parent / f"{log_file_path.stem}_{current_time}.log"
     log_file_path.parent.mkdir(exist_ok=True)
     file_handler = RichHandler(
-        **RICH_HANDLER_CONFIG,
+        **RICH_HANDLER_FILE_CONFIG,
         level=logging.DEBUG,
         console=Console(file=log_file_path.open("a", encoding="utf8")),
     )
