@@ -9,7 +9,7 @@ from pydantic import ByteSize
 from yarl import URL
 
 from bunkrr_uploader.api import BunkrrAPI
-from bunkrr_uploader.client.errors import FileUploadError
+from bunkrr_uploader.types.errors import FileUploadError
 from bunkrr_uploader.types.files import ChunkInfo, FileInfo
 from bunkrr_uploader.types.responses import UploadItemResponse, UploadResponse
 

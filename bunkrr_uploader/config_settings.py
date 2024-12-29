@@ -40,7 +40,7 @@ def handle_validation_error(e: ValidationError, *, title: str | None = None, sou
         )
 
 
-class ParsedArgs(BaseSettings):
+class ConfigSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="bunkr_",
@@ -68,7 +68,7 @@ class ParsedArgs(BaseSettings):
     chunk_retries: int = Field(2, description="How many times to retry a failed chunk or chunk completion")
 
 
-def parse_args() -> ParsedArgs:
+def parse_args() -> ConfigSettings:
     """Parses the command line arguments passed into the program."""
     parser = ArgumentParser(
         description="Bulk asynchronous uploader for bunkrr",
@@ -78,7 +78,7 @@ def parse_args() -> ParsedArgs:
     parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
 
     try:
-        parsed_args = ParsedArgs()  # type: ignore
+        parsed_args = ConfigSettings()  # type: ignore
 
     except ValidationError as e:
         handle_validation_error(e, title="CLI arguments")

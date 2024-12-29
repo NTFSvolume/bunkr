@@ -17,7 +17,7 @@ from bunkrr_uploader.types.responses import (
     VerifyTokenResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("bunkr-uploader")
 
 
 class BunkrrAPI:
@@ -80,7 +80,7 @@ class BunkrrAPI:
 
     """----------------------------------------------------------------------------------------------"""
 
-    def add_server_session(self, server_session: dict[URL, ClientSession]):
+    def add_server_session(self, server_session: dict[URL, ClientSession]) -> None:
         self._server_sessions.update(server_session)
 
     async def check(self) -> CheckResponse:
