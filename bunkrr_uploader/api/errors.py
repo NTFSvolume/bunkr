@@ -1,7 +1,10 @@
-from bunkrr_uploader.types.files import FileInfo
+from bunkrr_uploader.api.files import FileInfo
 
 
-class FileUploadError(Exception):
+class BunkrUploaderError(Exception): ...
+
+
+class FileUploadError(BunkrUploaderError):
     """Custom exception for file upload failures"""
 
     def __init__(self, file: FileInfo) -> None:
