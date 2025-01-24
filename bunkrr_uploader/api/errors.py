@@ -1,4 +1,4 @@
-from bunkrr_uploader.types.files import FileInfo
+from bunkrr_uploader.api.files import FileInfo
 
 
 class BunkrUploaderError(Exception): ...

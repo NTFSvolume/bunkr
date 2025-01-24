@@ -7,8 +7,8 @@ import aiofiles
 from aiohttp import ClientSession, FormData
 from yarl import URL
 
-from bunkrr_uploader.types.files import FileInfo
-from bunkrr_uploader.types.responses import (
+from bunkrr_uploader.api.files import FileInfo
+from bunkrr_uploader.api.responses import (
     AlbumsResponse,
     CheckResponse,
     CreateAlbumResponse,
