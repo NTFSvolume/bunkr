@@ -1,31 +1,36 @@
-[tool.poetry]
+[project]
 name = "bunkrr-uploader"
 version = "0.1.0"
 description = "Async Bunkrr uploader"
-authors = ["NTFSvolume", "alexmi256"]
-license = "MIT"
+authors = [
+    { name = "NTFSvolume" },
+    { name = "alexmi256" },
+]
+requires-python = ">=3.11,<3.13"
 readme = "README.md"
+license = "MIT"
+dependencies = [
+    "aiofiles>=24.1.0,<25",
+    "aiohttp>=3.11.10,<4",
+    "tqdm>=4.67.1,<5",
+    "rich>=13.9.4,<14",
+    "yarl>=1.18.3,<2",
+    "pydantic>=2.10.4,<3",
+    "pydantic-settings>=2.7.0,<3",
+]
+
+[project.scripts]
+bunkrr-uploader = "bunkrr_uploader.main:main"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0.1,<5",
+    "ruff>=0.8.0,<0.9",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.dependencies]
-python = ">=3.11,<3.13"
-aiofiles = "^24.1.0"
-aiohttp = "^3.11.10"
-tqdm = "^4.67.1 "
-rich = "^13.9.4"
-yarl = "^1.18.3"
-pydantic = "^2.10.4"
-pydantic-settings = "^2.7.0"
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = "^4.0.1"
-ruff = "^0.8.0"
-
-[tool.poetry.scripts]
-bunkrr-uploader = "bunkrr_uploader.main:main"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 120
