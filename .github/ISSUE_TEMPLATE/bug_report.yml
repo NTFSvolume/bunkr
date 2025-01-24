@@ -1,0 +1,68 @@
+body:
+  - id: prechecks
+    attributes:
+      description: |
+        Before opening an issue, please confirm that your question or issue hasn’t already been addressed.
+      label: I have taken steps to troubleshoot my issue first
+      options:
+        - label: "I'm using the latest version of `bunkr-uploader`"
+          required: true
+        - label: "I’ve checked existing issues to ensure this hasn’t been reported already."
+          required: true
+    type: checkboxes
+  - id: bug-description
+    attributes:
+      label: Describe the bug
+      placeholder: |
+        A clear and concise description of what the bug is.
+        1. Describe the bug accurately.
+        2. Add screenshots to help explain your problem (if applicable)
+    type: textarea
+    validations:
+      required: true
+  - id: reproduce-steps
+    attributes:
+      label: Steps to help reproduce the behavior
+      placeholder: |
+          1. In this environment...
+          2. With this config...
+          3. Run '...'
+          4. See error...
+    type: textarea
+    validations:
+      required: true
+  - id: environment
+    attributes:
+      description: What operating system, version, and/or environment are you working with?
+      label: Operating system/environment
+      placeholder: "Example: Windows 11 24H2"
+    type: input
+    validations:
+      required: true
+  - id: python-version
+    attributes:
+      description: |
+        What implementation and version of Python are you working with?
+        CPython is assumed unless indicated otherwise.
+      label: Python Version
+      placeholder: "Example: 3.12.0"
+    type: input
+    validations:
+      required: true
+  - id: version
+    attributes:
+      description: What version of `bunkr-uploader` are you encountering this issue with?
+      label: version
+    type: input
+    validations:
+      required: true
+  - id: anything-else
+    attributes:
+      description: Anything that will give us more context about the issue you are encountering!
+      label: Links, references, and/or additional comments?
+    type: textarea
+description: File a bug report
+labels: [ "bug" ]
+assignees: [ NTFSvolume ]
+title: "[BUG] <enter a bug description here>"
+name: Bug Report
