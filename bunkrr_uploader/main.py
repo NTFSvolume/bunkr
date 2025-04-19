@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from bunkrr_uploader.config_settings import parse_args
+from bunkrr_uploader.config import parse_args
 from bunkrr_uploader.logger import setup_logger
 from bunkrr_uploader.uploader import BunkrrUploader
 
@@ -15,8 +15,9 @@ async def async_main() -> None:
     bunkrr_client = BunkrrUploader(**args.model_dump())
     try:
         responses = await bunkrr_client.upload(args.path, album_name=args.album_name)
-        for r in responses:
-            logger.info(r.model_dump_json(indent=4))
+        for file, resp in responses:
+            info = f"success: {resp.success}, url: {resp.files[0].url}"
+            logger.info(f"{file.original_name}: {info}")
 
     finally:
         await bunkrr_client.close()

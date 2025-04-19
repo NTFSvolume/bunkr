@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 
 import aiofiles
 from aiohttp import ClientSession, FormData
-from tqdm.asyncio import tqdm
+from rich.progress import BarColumn, DownloadColumn, Progress, SpinnerColumn, TimeRemainingColumn, TransferSpeedColumn
 
 from bunkrr_uploader.api import BunkrrAPI
-from bunkrr_uploader.api.errors import FileUploadError
+from bunkrr_uploader.api.exceptions import FileUploadError
 from bunkrr_uploader.api.files import ChunkInfo, FileInfo
 from bunkrr_uploader.api.responses import UploadItemResponse, UploadResponse
 
@@ -22,6 +22,21 @@ if TYPE_CHECKING:
     from yarl import URL
 
 logger = logging.getLogger(__name__)
+
+
+columns = (
+    SpinnerColumn(),
+    "[progress.description]{task.description}",
+    BarColumn(bar_width=None),
+    "[progress.percentage]{task.percentage:>6.2f}%",
+    "━",
+    DownloadColumn(),
+    "━",
+    TransferSpeedColumn(),
+    "━",
+    TimeRemainingColumn(),
+)
+progress = Progress(*columns)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +79,7 @@ class BunkrrUploader:
             self._api._chunk_size = self._api.info.chunkSize.max
         self._api._chunk_size = 10 * 1024 * 1024
         self._chunk_size = self._api._chunk_size
+        self.progress = progress
         self._ready = True
 
     def _prepare_files(self, files: list[Path]) -> list[FileInfo]:
@@ -122,16 +138,16 @@ class BunkrrUploader:
         total_chunks = (file_info.size + self._chunk_size - 1) // self._chunk_size
         async with aiofiles.open(file_info.path, mode="rb") as file_data:
             index = 0
-            progress_bar = tqdm(total=file_info.size, unit="B", unit_scale=True, desc="Uploading")
+            task_id = progress.add_task(file_info.original_name, total=file_info.size)
             while True:
                 chunk_data = await file_data.read(self._chunk_size)
                 chunk_offset = self._chunk_size * index
                 if not chunk_data:
                     break
                 yield ChunkInfo(chunk_data, index, total_chunks, chunk_offset)
-                progress_bar.update(len(chunk_data))
+                progress.advance(task_id, len(chunk_data))
                 index += 1
-            progress_bar.close()
+            progress.remove_task(task_id)
 
     async def _upload_file(self, file_info: FileInfo, server: URL) -> UploadResponse:
         """Upload a file in chunks with retry mechanism."""
@@ -168,7 +184,7 @@ class BunkrrUploader:
             server = server.with_path("/api/")
         logger.info(f"{server = }")
         if server not in self._api.server_sessions:
-            headers = {"albumid": album_id} if album_id else {}
+            headers = {"albumid": str(album_id)} if album_id else {}
             headers = self._api._session_headers | headers
             session = ClientSession(server, headers=headers)  # type: ignore
             self._api.add_server_session({server: session})
@@ -186,7 +202,9 @@ class BunkrrUploader:
 
     """-------------------------------------------------------------------------------------------------"""
 
-    async def upload(self, path: Path, recurse: bool = False, album_name: str | None = None) -> list[UploadResponse]:
+    async def upload(
+        self, path: Path, recurse: bool = False, album_name: str | None = None
+    ) -> list[tuple[FileInfo, UploadResponse]]:
         if not path.exists():
             raise FileNotFoundError
         if path.is_file():
@@ -204,33 +222,35 @@ class BunkrrUploader:
         files_to_upload = self._prepare_files(files_to_upload)
         if not files_to_upload:
             logger.error("No files left to upload")
-            return [UploadResponse(success=False, files=[])]
+            return []
 
         album_id = None
         if album_name:
             album_id = await self._get_album_id(album_name)
             logger.debug(f"album id: '{album_id}'")
 
-        async def worker(file_info: FileInfo, server: URL) -> UploadResponse:
+        async def worker(file_info: FileInfo, server: URL) -> tuple[FileInfo, UploadResponse]:
             default_response = {"success": False, "files": [file_info.as_item]}
             async with self._max_connections:
                 try:
-                    return await self._upload_file(file_info, server=server)
+                    response = await self._upload_file(file_info, server=server)
+                    return file_info, response
                 except FileUploadError as e:
                     logger.error(str(e), exc_info=True)
-                return UploadResponse(**default_response)
+                return file_info, UploadResponse(**default_response)
 
-        responses: list[UploadResponse] = []
+        responses: list[tuple[FileInfo, UploadResponse]] = []
         tasks: list = []
         for file_info in files_to_upload:
             default_response = {"success": False, "files": [file_info.as_item]}
             server = await self._get_server(album_id)
             if not server:
-                responses.append(UploadResponse(**default_response))
+                responses.append((file_info, UploadResponse(**default_response)))
                 continue
             tasks.append(asyncio.create_task(worker(file_info, server)))
 
-        uploads = await asyncio.gather(*tasks)
+        with self.progress:
+            uploads = await asyncio.gather(*tasks)
         responses.extend(uploads)
         return responses
 
