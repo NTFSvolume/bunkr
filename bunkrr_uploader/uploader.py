@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 
 import aiofiles
 from aiohttp import ClientSession, FormData
-from tqdm.asyncio import tqdm
+from rich.progress import BarColumn, DownloadColumn, Progress, SpinnerColumn, TimeRemainingColumn, TransferSpeedColumn
 
 from bunkrr_uploader.api import BunkrrAPI
-from bunkrr_uploader.api.errors import FileUploadError
+from bunkrr_uploader.api.exceptions import FileUploadError
 from bunkrr_uploader.api.files import ChunkInfo, FileInfo
 from bunkrr_uploader.api.responses import UploadItemResponse, UploadResponse
 
@@ -22,6 +22,21 @@ if TYPE_CHECKING:
     from yarl import URL
 
 logger = logging.getLogger(__name__)
+
+
+columns = (
+    SpinnerColumn(),
+    "[progress.description]{task.description}",
+    BarColumn(bar_width=None),
+    "[progress.percentage]{task.percentage:>6.2f}%",
+    "━",
+    DownloadColumn(),
+    "━",
+    TransferSpeedColumn(),
+    "━",
+    TimeRemainingColumn(),
+)
+progress = Progress(*columns)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +79,7 @@ class BunkrrUploader:
             self._api._chunk_size = self._api.info.chunkSize.max
         self._api._chunk_size = 10 * 1024 * 1024
         self._chunk_size = self._api._chunk_size
+        self.progress = progress
         self._ready = True
 
     def _prepare_files(self, files: list[Path]) -> list[FileInfo]:
@@ -122,16 +138,16 @@ class BunkrrUploader:
         total_chunks = (file_info.size + self._chunk_size - 1) // self._chunk_size
         async with aiofiles.open(file_info.path, mode="rb") as file_data:
             index = 0
-            progress_bar = tqdm(total=file_info.size, unit="B", unit_scale=True, desc="Uploading")
+            task_id = progress.add_task(file_info.original_name, total=file_info.size)
             while True:
                 chunk_data = await file_data.read(self._chunk_size)
                 chunk_offset = self._chunk_size * index
                 if not chunk_data:
                     break
                 yield ChunkInfo(chunk_data, index, total_chunks, chunk_offset)
-                progress_bar.update(len(chunk_data))
+                progress.advance(task_id, len(chunk_data))
                 index += 1
-            progress_bar.close()
+            progress.remove_task(task_id)
 
     async def _upload_file(self, file_info: FileInfo, server: URL) -> UploadResponse:
         """Upload a file in chunks with retry mechanism."""
@@ -230,7 +246,8 @@ class BunkrrUploader:
                 continue
             tasks.append(asyncio.create_task(worker(file_info, server)))
 
-        uploads = await asyncio.gather(*tasks)
+        with self.progress:
+            uploads = await asyncio.gather(*tasks)
         responses.extend(uploads)
         return responses
 

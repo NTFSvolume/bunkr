@@ -47,7 +47,7 @@ class BunkrrAPI:
         self._session_headers = DEFAULT_HEADERS | {"token": self._token}
         self._session = ClientSession(API_ENTRYPOINT, headers=self._session_headers)
         self._chunk_size: int = chunk_size or 0
-        self._info = None
+        self._info: CheckResponse = None  # type: ignore
         self._semaphore = asyncio.Semaphore(self.RATE_LIMIT)
         self._server_sessions: dict[URL, ClientSession] = {}
 
