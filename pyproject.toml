@@ -1,7 +1,6 @@
 [project]
 name = "bunkrr-uploader"
 authors = [
-    {name = "alexmi256"},
     {name = "NTFSvolume"}
 ]
 dependencies = [
@@ -19,10 +18,10 @@ requires-python = ">=3.11,<3.13"
 version = "0.1.0"
 
 [project.scripts]
-bunkrr-uploader = "bunkrr_uploader.main:main"
+bunkrr-uploader = "bunkr_uploader.main:main"
 
 [tool.ruff]
-line-length = 120
+line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
@@ -76,8 +75,8 @@ spaces_before_inline_comment = 2
 spaces_indent_inline_array = 4
 
 [build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling"]
+build-backend = "uv_build"
+requires = ["uv_build>=0.8.17,<0.9.0"]
 
 [dependency-groups]
 dev = [

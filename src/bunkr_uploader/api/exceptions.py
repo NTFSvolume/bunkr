@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bunkrr_uploader.api.files import FileInfo
+    from bunkr_uploader.api.files import FileInfo
 
 
 class BunkrUploaderError(Exception): ...

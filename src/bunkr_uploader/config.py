@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, CliPositionalArg, SettingsConfigDict
 from rich.console import Console
 from rich.text import Text
 
-from bunkrr_uploader import __version__
+from bunkr_uploader import __version__
 
 ERROR_PREFIX = "\n[bold red]ERROR: [/bold red]"
 
@@ -19,7 +19,9 @@ def print_to_console(text: Text | str, *, error: bool = False, **kwargs) -> None
     console.print(msg, **kwargs)
 
 
-def handle_validation_error(e: ValidationError, *, title: str | None = None, sources: dict | None = None):
+def handle_validation_error(
+    e: ValidationError, *, title: str | None = None, sources: dict | None = None
+):
     error_count = e.error_count()
     source: Path = sources.get(e.title, None) if sources else None  # type: ignore
     title = title or e.title
@@ -36,7 +38,8 @@ def handle_validation_error(e: ValidationError, *, title: str | None = None, sou
         msg = f"\nValue of '{loc}' is invalid:"
         print_to_console(msg, markup=False)
         print_to_console(
-            f"  {error['msg']} (input_value='{error['input']}', input_type='{error['type']}')", style="bold red"
+            f"  {error['msg']} (input_value='{error['input']}', input_type='{error['type']}')",
+            style="bold red",
         )
 
 
@@ -49,7 +52,9 @@ class ConfigSettings(BaseSettings):
         cli_kebab_case=True,
         populate_by_name=True,
     )
-    path: CliPositionalArg[Path] = Field(description="File or directory to look for files in to upload")
+    path: CliPositionalArg[Path] = Field(
+        description="File or directory to look for files in to upload"
+    )
     token: str = Field(
         validation_alias=AliasChoices("t", "token"),
         description="API token for your account so that you can upload to a specific account/folder. You can also set the BUNKR_TOKEN environment variable for this",
@@ -61,11 +66,15 @@ class ConfigSettings(BaseSettings):
         description="Maximum parallel uploads to do at once",
     )
     chunk_size: ByteSize = ByteSize(0)
-    use_max_chunk_size: bool = Field(True, description="Use the server's maximum chunk size instead of the default one")
+    use_max_chunk_size: bool = Field(
+        True, description="Use the server's maximum chunk size instead of the default one"
+    )
     public: bool = Field(True, description="Make all files uploaded public")
     config_file: Path | None = None
     upload_retries: int = Field(1, description="How many times to retry a failed upload")
-    chunk_retries: int = Field(2, description="How many times to retry a failed chunk or chunk completion")
+    chunk_retries: int = Field(
+        2, description="How many times to retry a failed chunk or chunk completion"
+    )
 
 
 def parse_args() -> ConfigSettings:

@@ -7,8 +7,8 @@ import aiofiles
 from aiohttp import ClientResponse, ClientSession, FormData
 from yarl import URL
 
-from bunkrr_uploader.api.files import FileInfo
-from bunkrr_uploader.api.responses import (
+from bunkr_uploader.api.files import FileInfo
+from bunkr_uploader.api.responses import (
     AlbumsResponse,
     CheckResponse,
     CreateAlbumResponse,
@@ -130,10 +130,14 @@ class BunkrrAPI:
         public: bool = True,
         download: bool = True,
     ) -> CreateAlbumResponse:
-        response = await self._post("albums", name=name, description=description, public=public, download=download)
+        response = await self._post(
+            "albums", name=name, description=description, public=public, download=download
+        )
         return CreateAlbumResponse(**response)
 
-    async def upload(self, file: FileInfo | Path, server: URL, album_id: str | None = None) -> UploadResponse:
+    async def upload(
+        self, file: FileInfo | Path, server: URL, album_id: str | None = None
+    ) -> UploadResponse:
         if isinstance(file, Path):
             file = FileInfo(file, album_id=album_id)
 
@@ -143,7 +147,9 @@ class BunkrrAPI:
             chunk_data = await file_data.read(self._chunk_size)
 
         data = FormData()
-        data.add_field("files[]", chunk_data, filename=file_info.path.name, content_type=file_info.mimetype)
+        data.add_field(
+            "files[]", chunk_data, filename=file_info.path.name, content_type=file_info.mimetype
+        )
         if album_id:
             data.add_field("albumid", str(file_info.album_id))
 

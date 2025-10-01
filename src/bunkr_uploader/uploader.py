@@ -7,12 +7,19 @@ from typing import TYPE_CHECKING
 
 import aiofiles
 from aiohttp import ClientSession, FormData
-from rich.progress import BarColumn, DownloadColumn, Progress, SpinnerColumn, TimeRemainingColumn, TransferSpeedColumn
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 
-from bunkrr_uploader.api import BunkrrAPI
-from bunkrr_uploader.api.exceptions import FileUploadError
-from bunkrr_uploader.api.files import ChunkInfo, FileInfo
-from bunkrr_uploader.api.responses import UploadItemResponse, UploadResponse
+from bunkr_uploader.api import BunkrrAPI
+from bunkr_uploader.api.exceptions import FileUploadError
+from bunkr_uploader.api.files import ChunkInfo, FileInfo
+from bunkr_uploader.api.responses import UploadItemResponse, UploadResponse
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

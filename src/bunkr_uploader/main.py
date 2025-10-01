@@ -1,11 +1,11 @@
 import asyncio
 import logging
 
-from bunkrr_uploader.config import parse_args
-from bunkrr_uploader.logger import setup_logger
-from bunkrr_uploader.uploader import BunkrrUploader
+from bunkr_uploader.config import parse_args
+from bunkr_uploader.logger import setup_logger
+from bunkr_uploader.uploader import BunkrrUploader
 
-logger = logging.getLogger("bunkrr_uploader")
+logger = logging.getLogger("bunkr_uploader")
 
 
 async def async_main() -> None:

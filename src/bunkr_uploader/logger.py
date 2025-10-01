@@ -15,12 +15,20 @@ THEME_DICT = {
 }
 CONSOLE_THEME = Theme(THEME_DICT)
 RICH_CONSOLE = Console(theme=CONSOLE_THEME)
-RICH_HANDLER_CONSOLE_CONFIG: dict = {"show_time": False, "rich_tracebacks": False, "tracebacks_show_locals": False}
-RICH_HANDLER_FILE_CONFIG: dict = {"show_time": True, "rich_tracebacks": True, "tracebacks_show_locals": True}
+RICH_HANDLER_CONSOLE_CONFIG: dict = {
+    "show_time": False,
+    "rich_tracebacks": False,
+    "tracebacks_show_locals": False,
+}
+RICH_HANDLER_FILE_CONFIG: dict = {
+    "show_time": True,
+    "rich_tracebacks": True,
+    "tracebacks_show_locals": True,
+}
 
 
 def setup_logger() -> None:
-    logger = logging.getLogger("bunkrr_uploader")
+    logger = logging.getLogger("bunkr_uploader")
     logger.setLevel(logging.DEBUG)
     console_handler = RichHandler(**RICH_HANDLER_CONSOLE_CONFIG, level=20, console=RICH_CONSOLE)
     logger.addHandler(console_handler)
