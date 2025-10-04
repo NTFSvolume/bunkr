@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import rich
+import rich.markup
 from pydantic import AliasChoices, ByteSize, Field, ValidationError
 from pydantic_settings import BaseSettings, CliPositionalArg, SettingsConfigDict
 
@@ -25,11 +26,8 @@ def _handle_validation_error(exception: ValidationError) -> None:
         loc = f"--{str(loc).replace('_', '-')}"
 
         msg = f"\nValue of '{loc}' is invalid:"
-        _print_to_console(msg, markup=False)
-        _print_to_console(
-            f"  {error['msg']} (input_value='{error['input']}')\n",
-            style="bold red",
-        )
+        _print_to_console(rich.markup.escape(msg))
+        _print_to_console(f"[bold red]  {error['msg']} (input_value='{error['input']}')\n")
 
 
 class ConfigSettings(BaseSettings):
@@ -40,6 +38,9 @@ class ConfigSettings(BaseSettings):
         cli_parse_args=True,
         cli_kebab_case=True,
         populate_by_name=True,
+        cli_implicit_flags=True,
+        cli_hide_none_type=True,
+        cli_avoid_json=True,
     )
     path: CliPositionalArg[Path] = Field(
         description="File or directory to look for files in to upload"
