@@ -3,16 +3,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bunkr_uploader.api._files import File
+    from bunkr_uploader.api._files import Chunk, File
 
 
 class BunkrUploaderError(Exception): ...
 
 
-class FileUploadError(BunkrUploaderError):
-    """Custom exception for file upload failures"""
+class ChunkUploadError(BunkrUploaderError):
+    def __init__(self, file: File, chunk: Chunk) -> None:
+        self.message = f"Failed uploading chunk #{chunk.index + 1}/{chunk.total} of {file.uuid}({file.original_name})"
+        super().__init__(self.message)
 
+
+class FileUploadError(BunkrUploaderError):
     def __init__(self, file: File) -> None:
-        self.file = file
-        self.message = f"Failed to upload {self.file.path}"
+        self.message = f"Failed to upload {file.path}"
         super().__init__(self.message)

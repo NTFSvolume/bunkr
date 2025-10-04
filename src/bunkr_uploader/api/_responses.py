@@ -43,7 +43,7 @@ class BunkrrResponse(BaseModel):
     success: bool = True
 
 
-class UploadItemResponse(BunkrrResponse):
+class FileResponse(BunkrrResponse):
     name: str
     url: URL | None
 
@@ -52,8 +52,8 @@ class UploadItemResponse(BunkrrResponse):
             self.success = False
 
 
-class Upload(BunkrrResponse):
-    files: list[UploadItemResponse] = []
+class UploadResponse(BunkrrResponse):
+    files: list[FileResponse] = []
 
 
 class AlbumItem(BunkrrResponse):

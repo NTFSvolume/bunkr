@@ -7,7 +7,7 @@ import mimetypes
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from ._responses import UploadItemResponse
+from ._responses import FileResponse
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -58,15 +58,5 @@ class File:
             uuid=str(uuid4()),
         )
 
-    def payload(self) -> dict[str, str | None]:
-        return {
-            "uuid": self.uuid,
-            "original": self.original_name,
-            "type": self.mimetype,
-            "albumid": self.album_id or None,
-            "filelength": None,
-            "age": None,
-        }
-
-    def as_item(self) -> UploadItemResponse:
-        return UploadItemResponse(name=self.uuid, url=None)
+    def as_response(self) -> FileResponse:
+        return FileResponse(name=self.uuid, url=None)

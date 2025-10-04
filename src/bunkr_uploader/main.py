@@ -15,12 +15,12 @@ async def async_main() -> None:
 
     logger.debug(f"Using params: \n {settings.model_dump_json(indent=4)}")
     async with BunkrrUploader(settings) as client:
-        responses = await client.upload(
+        results = await client.upload(
             settings.path, settings.recurse, album_name=settings.album_name
         )
-        for file, resp in responses:
-            info = f"success: {resp.success}, url: {resp.files[0].url}"
-            logger.info(f"{file.original_name}: {info}")
+        for result in results:
+            info = f"success: {result.result.success}, url: {result.result.files[0].url}"
+            logger.info(f"{result.file.original_name}: {info}")
 
 
 def main() -> NoReturn:
