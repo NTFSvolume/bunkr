@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import datetime
 import logging
 from typing import TYPE_CHECKING, Any, Self
 
 import aiofiles
-from pydantic import ByteSize
+from pydantic import ByteSize, TypeAdapter
 
 from bunkr_uploader.api import BunkrrAPI
 from bunkr_uploader.api._exceptions import ChunkUploadError, FileUploadError
 from bunkr_uploader.api._files import Chunk, File
 from bunkr_uploader.api._responses import UploadResponse
 
+from .logger import json_logger
 from .progress import new_progress
 
 if TYPE_CHECKING:
@@ -23,13 +25,25 @@ if TYPE_CHECKING:
 
     from bunkr_uploader.config import ConfigSettings
 
+
 logger = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime.datetime:
+    return datetime.datetime.now().astimezone(datetime.UTC)
 
 
 @dataclasses.dataclass(slots=True)
 class FileUploadResult:
     file: File
     result: UploadResponse
+    timestamp: datetime.datetime = dataclasses.field(init=False, default_factory=_utc_now)
+
+    def dumps(self) -> str:
+        return _file_upload_result_serializer(self, indent=2).decode()
+
+
+_file_upload_result_serializer = TypeAdapter(FileUploadResult).dump_json
 
 
 class BunkrrUploader:
@@ -71,7 +85,7 @@ class BunkrrUploader:
             else:
                 yield file
 
-    async def _upload_chunk(self, file: File, chunk: Chunk, server: URL) -> bool:
+    async def _upload_chunk(self, file: File, server: URL, chunk: Chunk) -> bool:
         """Upload a single chunk with retry mechanism."""
         for attempt in range(self.settings.chunk_retries):
             msg = f"uploading chunk {chunk.index} of file {file.original_name} (attempt {attempt + 1}/{self.settings.chunk_retries})"
@@ -113,7 +127,7 @@ class BunkrrUploader:
                     return await self._api.direct_upload(file, server)
 
                 async for chunk in self._chunked_read(file):
-                    await self._upload_chunk(file, chunk, server)
+                    await self._upload_chunk(file, server, chunk)
 
                 return await self._api.finish_chunks(file, server)
 
@@ -196,7 +210,9 @@ class BunkrrUploader:
         try:
             server = await self._get_server()
             response = await self._upload_file(file, server)
-            return FileUploadResult(file, response)
+            result = FileUploadResult(file, response)
+            json_logger.info(result)
+            return result
         finally:
             self._sem.release()
 

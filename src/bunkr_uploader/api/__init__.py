@@ -169,12 +169,12 @@ class BunkrrAPI:
         if not result["success"]:
             raise ChunkUploadError(file, chunk)
 
-    def _create_chunk_dataform(self, file_info: File, chunk: Chunk) -> FormData:
+    def _create_chunk_dataform(self, file: File, chunk: Chunk) -> FormData:
         form = FormData()
         form.add_fields(
-            ("dzuuid", file_info.uuid),
+            ("dzuuid", file.uuid),
             ("dzchunkindex", str(chunk.index)),
-            ("dztotalfilesize", str(file_info.size)),
+            ("dztotalfilesize", str(file.size)),
             ("dzchunksize", str(self._chunk_size)),
             ("dztotalchunkcount", str(chunk.total)),
             ("dzchunkbyteoffset", str(chunk.offset)),
@@ -182,7 +182,7 @@ class BunkrrAPI:
         form.add_field(
             "files[]",
             chunk.data,
-            filename=file_info.upload_name,
+            filename=file.upload_name,
             content_type="application/octet-stream",
         )
         return form

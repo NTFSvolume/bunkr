@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import logging
 
 # from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.theme import Theme
+
+if TYPE_CHECKING:
+    from bunkr_uploader.client import FileUploadResult
 
 _CONSOLE_THEME = Theme(
     {
@@ -45,3 +51,16 @@ def setup_logger(name: str) -> None:
         console=Console(file=log_file_path.open("a", encoding="utf8"), width=280),
     )
     logger.addHandler(file_handler)
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        result: FileUploadResult = cast("FileUploadResult", record.msg)
+        return result.dumps()
+
+
+json_logger = logging.getLogger("bunkr_output_json")
+json_file_handler = logging.FileHandler(Path("bunkr_upload.json"))
+json_file_handler.setFormatter(JsonFormatter())
+json_logger.addHandler(json_file_handler)
+json_logger.setLevel(10)
