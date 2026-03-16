@@ -5,9 +5,9 @@ import dataclasses
 import logging
 from typing import TYPE_CHECKING, Any, Self
 
-import aiofiles
 from pydantic import TypeAdapter
 
+from bunkr_uploader import aio
 from bunkr_uploader.api import BunkrAPI
 from bunkr_uploader.api.errors import ChunkUploadError, FileUploadError
 from bunkr_uploader.api.file import Chunk, FileUpload
@@ -89,8 +89,8 @@ class BunkrUploader:
         index = 0
         task_id = self._progress.add_task(file.original_name, total=file.size)
         try:
-            async with aiofiles.open(file.path, mode="rb") as file_data:
-                while data := await file_data.read(self._api.chunk_size):
+            async with aio.open(file.path, mode="rb") as fp:
+                while data := await fp.read(self._api.chunk_size):
                     offset = self._api.chunk_size * index
                     mem_view = memoryview(data)
                     yield Chunk(mem_view, index, n_chunks, offset)

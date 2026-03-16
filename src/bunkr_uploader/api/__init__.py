@@ -17,8 +17,6 @@ from bunkr_uploader.api.file import Chunk, FileUpload
 _API_ENTRYPOINT = URL("https://dash.bunkr.cr/api/")
 _SEMAPHORE = asyncio.Semaphore(50)
 
-
-__all__ = ["BunkrAPI"]
 logger = logging.getLogger(__name__)
 
 
