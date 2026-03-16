@@ -1,8 +1,13 @@
-# Bunkrr Uploader
+# Bunkr Uploader
+
+[![PyPI - Version](https://img.shields.io/pypi/v/bunkr)](https://pypi.org/project/bunkr/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/bunkr?style=flat)](https://pypi.org/project/bunkr/)
+[![linting - Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/NTFSvolume/bunkr-uploader/actions/workflows/ruff.yml)
+[![GitHub License](https://img.shields.io/github/license/NTFSvolume/bunkr-uploader)](https://github.com/NTFSvolume/bunkr-uploader/blob/master/LICENSE)
 
 ## Supports
 
-- Bunkrr accounts
+- Bunkr accounts
 - Parallel uploads
 - Retries
 - Progress bars
@@ -16,31 +21,24 @@
 </div>
 
 ```shell
-usage: bunkr_uploader [-h] [-t str] [-n {str,null}] [-c int] [--chunk-size ByteSize] [--use-max-chunk-size bool] [--public bool] [--config-file {Path,null}] [--upload-retries int] [--chunk-retries int]
-                      [--upload-delay int] [--recurse bool]
-                      PATH
+Usage: bunkr upload --token STR [OPTIONS] PATH
 
-positional arguments:
-  PATH                  File or directory to look for files in to upload
+Upload a file or files to bunkr
 
-options:
-  -h, --help            show this help message and exit
-  -t str, --token str   API token for your account so that you can upload to a specific account/folder. You can also set the BUNKR_TOKEN environment variable for this (required)
-  -n {str,null}, --album-name {str,null}
-                        (default: null)
-  -c int, --concurrent-uploads int
-                        Maximum parallel uploads to do at once (default: 2)
-  --chunk-size ByteSize
-                        (default: 0)
-  --use-max-chunk-size bool
-                        Use the server's maximum chunk size instead of the default one (default: True)
-  --public bool         Make all files uploaded public (default: True)
-  --config-file {Path,null}
-                        (default: null)
-  --upload-retries int  How many times to retry a failed upload (default: 1)
-  --chunk-retries int   How many times to retry a failed chunk or chunk completion (default: 2)
-  --upload-delay int    How many seconds to wait in between failed upload attempts (default: 1)
-  --recurse bool        Read files in `path` recursely (default: False)
+╭─ Arguments ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ *  PATH  File or directory to look for files in to upload [required]                                                                               │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Parameters ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│    --recurse                Read files in PATH recursely [default: False]                                                                          │
+│ *  --token -t               API token for your account so that you can upload to a specific account/folder. You can also set the BUNKR_TOKEN       │
+│                             environment variable for this [env var: BUNKR_TOKEN] [required]                                                        │
+│    --album-name -n          Name to use for album. If an album with this name already exists, add the files to that album                          │
+│    --concurrent-uploads -c  Maximum parallel uploads to do at once [default: 2]                                                                    │
+│    --chunk-size             Size of chunks to use for uploads. 0 or None will use the server's maximum chunk size                                  │
+│    --public --no-public     Make all uploaded files public [default: True]                                                                         │
+│    --retries -R             How many times to retry a failed file upload [default: 1]                                                              │
+│    --chunk-retries          How many times to retry a failed chunk upload [default: 2]                                                             │
+│    --delay                  How many seconds to wait in between failed upload attempts [default: 1.0]  
 ```
 
 ## TODO

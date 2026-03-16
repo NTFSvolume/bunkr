@@ -1,18 +1,32 @@
 [project]
 name = "bunkr"
-authors = [
-    {name = "NTFSvolume"}
+authors = [{name = "NTFSvolume", email = "NTFSvolume@proton.me"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python"
 ]
 dependencies = [
     "aiohttp>=3.11.10",
     "cyclopts>=4.10.0",
     "pydantic>=2.11"
 ]
-description = "Async Bunkrr uploader"
+description = "Async Bunkr uploader"
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.1.0"
+version = "0.1.1"
 
 [project.scripts]
 bunkr = "bunkr.__main__:app"
