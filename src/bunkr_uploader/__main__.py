@@ -36,7 +36,9 @@ async def upload(
     path: Annotated[Path, Parameter(help="File or directory to look for files in to upload")],
     /,
     *,
-    recurse: Annotated[bool, Parameter(help="Read files in `path` recursely")] = False,
+    recurse: Annotated[
+        bool, Parameter(help="Read files in PATH recursely", negative_bool=[])
+    ] = False,
     config: Annotated[Config, Parameter(name="*")],
 ) -> None:
     await _upload(path, recurse, config)

@@ -78,7 +78,7 @@ class BunkrUploader:
             except ChunkUploadError as e:
                 if attempt < self.config.chunk_retries:
                     logger.error(str(e))
-                    await asyncio.sleep(self.config.upload_delay)
+                    await asyncio.sleep(self.config.delay)
                     continue
                 raise FileUploadError(file) from e
 
@@ -102,7 +102,7 @@ class BunkrUploader:
 
     async def _upload_file(self, file: File, server: URL) -> UploadResponse:
         """Upload a file in chunks with retry mechanism."""
-        for attempt in range(self.config.upload_retries):
+        for attempt in range(self.config.retries):
             try:
                 if file.size <= self._api.chunk_size:
                     return await self._api.direct_upload(file, server)
@@ -113,13 +113,15 @@ class BunkrUploader:
                 return await self._api.finish_chunks(file, server)
 
             except FileUploadError as e:
-                if attempt < self.config.upload_retries - 1:
-                    msg = f"{e} (attempt {attempt + 1}/{self.config.upload_retries})"
+                if attempt < self.config.retries - 1:
+                    msg = f"{e} (attempt {attempt + 1}/{self.config.retries})"
                     logger.error(msg)
-                    await asyncio.sleep(self.config.upload_delay)
+                    await asyncio.sleep(self.config.delay)
                     continue
 
-                msg = f"Skipping upload of '{file.path}' after {self.config.upload_retries} failed attempts"
+                msg = (
+                    f"Skipping upload of '{file.path}' after {self.config.retries} failed attempts"
+                )
                 logger.exception(msg)
 
         failed_file_resp = file.as_response()

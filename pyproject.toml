@@ -18,7 +18,7 @@ requires-python = ">=3.11"
 version = "0.1.0"
 
 [project.scripts]
-bunkr_uploader = "bunkr_uploader.main:main"
+bunkr_uploader = "bunkr_uploader.__main__:app"
 
 [tool.ruff]
 line-length = 100

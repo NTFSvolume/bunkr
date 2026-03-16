@@ -1,27 +1,30 @@
+from typing import Annotated
+
+from cyclopts import Parameter
 from pydantic import BaseModel, ByteSize, Field
 
 
 class Config(BaseModel, defer_build=True):
-    token: str = Field(alias="t")
+    token: Annotated[str, Parameter(alias="-t", env_var="BUNKR_TOKEN")]
     "API token for your account so that you can upload to a specific account/folder. You can also set the BUNKR_TOKEN environment variable for this"
 
-    album_name: str | None = Field(None, alias="n")
+    album_name: Annotated[str | None, Parameter(alias="-n")] = None
     "Name to use for album. If an album with this name already exists, add the files to that album"
 
-    concurrent_uploads: int = Field(2, alias="c", gt=0, le=50)
+    concurrent_uploads: Annotated[int | None, Parameter(alias="-c")] = Field(2, gt=0, le=50)
     "Maximum parallel uploads to do at once"
 
-    chunk_size: ByteSize | None = None
-    "None will use the server's maximum chunk size instead of the default one"
+    chunk_size: ByteSize | None = Field(default=None, gt=0)
+    "Size of chunks to use for uploads. 0 or `None` will use the server's maximum chunk size"
 
     public: bool = True
-    "Make all files uploaded public"
+    "Make all uploaded files public"
 
-    upload_retries: int = 1
+    retries: Annotated[int, Parameter(alias="-R")] = Field(default=1, gt=0)
     "How many times to retry a failed file upload"
 
-    chunk_retries: int = 2
+    chunk_retries: int = Field(default=2, gt=0)
     "How many times to retry a failed chunk upload"
 
-    upload_delay: int = 1
+    delay: float = Field(default=1.0, ge=0)
     "How many seconds to wait in between failed upload attempts"
