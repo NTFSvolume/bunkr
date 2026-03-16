@@ -7,7 +7,7 @@ import mimetypes
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from ._responses import FileResponse
+from .responses import FileResponse
 
 if TYPE_CHECKING:
     from pathlib import Path

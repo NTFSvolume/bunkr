@@ -1,34 +1,39 @@
 # ruff: noqa: N815
+import dataclasses
 from datetime import datetime, timedelta
-from typing import Annotated, TypedDict
+from typing import Annotated
 
 import yarl
 from pydantic import BaseModel, ByteSize, ConfigDict, HttpUrl, PlainValidator
 
-URL = Annotated[yarl.URL, PlainValidator(lambda x: yarl.URL(str(HttpUrl(x))))]
+HttpURL = Annotated[yarl.URL, PlainValidator(lambda x: yarl.URL(str(HttpUrl(x))))]
 
 
-class ChunkSize(BaseModel):
+@dataclasses.dataclass(slots=True)
+class ChunkSize:
     max: ByteSize
     default: ByteSize
     timeout: timedelta
 
 
-class FileIdentifierLength(TypedDict):
+@dataclasses.dataclass(slots=True)
+class FileIdentifierLength:
     min: int
     max: int
     default: int
     force: bool
 
 
-class StripTags(TypedDict):
+@dataclasses.dataclass(slots=True)
+class StripTags:
     blacklistExtensions: set[str]
     default: bool
     force: bool
     video: bool
 
 
-class Permissions(TypedDict):
+@dataclasses.dataclass(slots=True)
+class Permissions:
     admin: bool
     moderator: bool
     superadmin: bool
@@ -37,26 +42,26 @@ class Permissions(TypedDict):
     vvip: bool
 
 
-class BunkrrResponse(BaseModel):
+class _Response(BaseModel):
     model_config = ConfigDict(populate_by_name=True, defer_build=True)
     description: str = ""
     success: bool = True
 
 
-class FileResponse(BunkrrResponse):
+class FileResponse(_Response):
     name: str
-    url: URL | None
+    url: HttpURL | None
 
     def model_post_init(self, *_) -> None:
         if self.url is None:
             self.success = False
 
 
-class UploadResponse(BunkrrResponse):
+class UploadResponse(_Response):
     files: list[FileResponse] = []
 
 
-class AlbumItem(BunkrrResponse):
+class AlbumItem(_Response):
     descriptionHtml: str
     download: bool
     editedAt: datetime
@@ -72,16 +77,16 @@ class AlbumItem(BunkrrResponse):
     zipSize: ByteSize | None
 
 
-class Albums(BunkrrResponse):
+class Albums(_Response):
     albums: list[AlbumItem]
     count: int
 
 
-class CreateAlbum(BunkrrResponse):
+class CreateAlbum(_Response):
     id: int
 
 
-class VerifyToken(BunkrrResponse):
+class VerifyToken(_Response):
     defaultRetentionPeriod: timedelta
     group: str
     permissions: Permissions
@@ -89,7 +94,7 @@ class VerifyToken(BunkrrResponse):
     username: str
 
 
-class Check(BunkrrResponse):
+class Check(_Response):
     chunkSize: ChunkSize
     defaultTemporaryUploadAge: int
     enableUserAccounts: bool
@@ -101,5 +106,5 @@ class Check(BunkrrResponse):
     temporaryUploadAges: list[int]
 
 
-class Node(BunkrrResponse):
-    url: URL
+class Node(_Response):
+    url: HttpURL

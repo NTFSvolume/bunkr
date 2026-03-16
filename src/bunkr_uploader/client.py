@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any, Self
 import aiofiles
 from pydantic import ByteSize, TypeAdapter
 
-from bunkr_uploader.api import BunkrrAPI
-from bunkr_uploader.api._exceptions import ChunkUploadError, FileUploadError
-from bunkr_uploader.api._files import Chunk, File
-from bunkr_uploader.api._responses import UploadResponse
+from bunkr_uploader.api import BunkrAPI
+from bunkr_uploader.api.errors import ChunkUploadError, FileUploadError
+from bunkr_uploader.api.file import Chunk, File
+from bunkr_uploader.api.responses import UploadResponse
 
 from .logger import utc_now, write_to_jsonl
 from .progress import new_progress
@@ -45,7 +45,7 @@ _file_upload_result_serializer = TypeAdapter(FileUploadResult).dump_json
 class BunkrrUploader:
     def __init__(self, settings: ConfigSettings) -> None:
         self.settings = settings
-        self._api = BunkrrAPI(settings.token, settings.chunk_size)
+        self._api = BunkrAPI(settings.token, settings.chunk_size)
         assert self.settings.concurrent_uploads <= self._api.RATE_LIMIT
         self._sem = asyncio.BoundedSemaphore(settings.concurrent_uploads)
         self._ready = False
@@ -57,13 +57,13 @@ class BunkrrUploader:
         await self.close()
 
     async def startup(self) -> None:
-        await self._api.startup()
+        await self._api._async_post_init_()
         if self.settings.use_max_chunk_size:
-            self._api._chunk_size = self._api._info.chunkSize.max
+            self._api.chunk_size = self._api._info.chunkSize.max
         else:
-            self._api._chunk_size = self.settings.chunk_size or ByteSize(10 * 1024 * 1024)
+            self._api.chunk_size = self.settings.chunk_size or ByteSize(10 * 1024 * 1024)
 
-        self._chunk_size = self._api._chunk_size
+        self._chunk_size = self._api.chunk_size
         self._progress = new_progress()
         self._ready = True
 

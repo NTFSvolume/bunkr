@@ -1,118 +1,134 @@
 import asyncio
+import dataclasses
 import itertools
-import json
 import logging
-from typing import Any, Final, Self
+from collections.abc import Mapping
+from json import dumps as json_dumps
+from typing import Any, Self
 
 import aiofiles
-from aiohttp import ClientResponse, ClientSession, ClientTimeout, FormData
+from aiohttp import ClientSession, ClientTimeout, FormData
+from multidict import CIMultiDict
 from yarl import URL
 
-from bunkr_uploader.api import _responses
-from bunkr_uploader.api._exceptions import ChunkUploadError, FileUploadError
-from bunkr_uploader.api._files import Chunk, File
+from bunkr_uploader.api import responses
+from bunkr_uploader.api.errors import ChunkUploadError, FileUploadError
+from bunkr_uploader.api.file import Chunk, File
 
-_logger = logging.getLogger(__name__)
 _API_ENTRYPOINT = URL("https://dash.bunkr.cr/api/")
-_DEFAULT_HEADERS: dict[str, str] = {
-    "Accept": "application/json, text/plain",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
-    "Referer": "https://dash.bunkr.cr/",
-    "striptags": "null",
-    "Origin": "https://dash.bunkr.cr",
-}
+_SEMAPHORE = asyncio.Semaphore(50)
 
 
-def _log_resp(resp: ClientResponse, response: Any) -> None:
-    record = {
-        "url": resp.url,
-        "headers": dict(resp.headers),
-        "response": response,
-    }
-    _logger.debug(f"response: \n {json.dumps(record, indent=4, default=str)}")
+__all__ = ["BunkrAPI"]
+logger = logging.getLogger(__name__)
 
 
-class BunkrrAPI:
-    RATE_LIMIT: Final[int] = 50
+@dataclasses.dataclass(slots=True)
+class BunkrAPI:
+    token: str
+    chunk_size: int = 0
+    _session: ClientSession | None = dataclasses.field(init=False, default=None)
+    _info: responses.Check | None = dataclasses.field(init=False, default=None)
 
-    def __init__(self, token: str, chunk_size: int | None = None) -> None:
-        self._token = token
-        self._session_headers = _DEFAULT_HEADERS | {"token": self._token}
-        self._chunk_size: int = chunk_size or 0
-        self._info: _responses.Check
-        self._semaphore = asyncio.Semaphore(self.RATE_LIMIT)
-        self.__session: ClientSession | None = None
+    async def _async_post_init_(self) -> None:
+        self._info = await self.check()
+        self.chunk_size = self.chunk_size or self._info.chunkSize.default
+        assert 0 < self.chunk_size <= self._info.chunkSize.max
+        await self.verify_token()
 
     async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *_: Any) -> None:
         await self.close()
 
+    async def close(self) -> None:
+        if self._session is not None:
+            await self._session.close()
+
     @property
-    def _session(self) -> ClientSession:
-        if self.__session is None:
-            self.__session = ClientSession(
+    def session(self) -> ClientSession:
+        if self._session is None:
+            self._session = ClientSession(
                 _API_ENTRYPOINT,
-                headers=self._session_headers,
+                headers={
+                    "Accept": "application/json, text/plain",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
+                    "Referer": "https://dash.bunkr.cr/",
+                    "striptags": "null",
+                    "Origin": "https://dash.bunkr.cr",
+                },
                 raise_for_status=True,
                 timeout=ClientTimeout(sock_connect=30, sock_read=20),
             )
-        return self.__session
+        return self._session
 
     async def _request(
         self,
         path_or_url: URL | str,
         *,
         form: FormData | None = None,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
         **json: Any,
     ) -> dict[str, Any]:
         method = "POST" if (form or json) else "GET"
-        headers = self._session_headers | (headers or {})
 
         async with (
-            self._semaphore,
-            self._session.request(
-                method, path_or_url, data=form, json=json or None, headers=headers
+            _SEMAPHORE,
+            self.session.request(
+                method,
+                path_or_url,
+                data=form,
+                json=json or None,
+                headers=self._prepare_headers(headers),
             ) as resp,
         ):
-            response = await resp.json()
-            _log_resp(resp, response)
-            return response
+            data = await resp.json()
+            record = {
+                "url": resp.url,
+                "headers": dict(resp.headers),
+                "data": data,
+            }
+            logger.debug(f"response: \n {json_dumps(record, indent=4, default=str)}")
 
-    async def startup(self) -> None:
-        self._info = await self.check()
-        self._chunk_size = self._chunk_size or self._info.chunkSize.default
-        assert 0 < self._chunk_size <= self._info.chunkSize.max
-        await self.verify_token()
+            return data
 
-    async def close(self) -> None:
-        if self.__session is not None:
-            await self.__session.close()
+    def _prepare_headers(self, headers: Mapping[str, str] | None = None) -> CIMultiDict[str]:
+        """Add default headers and transform it to CIMultiDict"""
+        combined = CIMultiDict(token=self.token)
+        if headers:
+            headers = CIMultiDict(headers)
+            new: set[str] = set()
+            for key, value in headers.items():
+                if key in new:
+                    combined.add(key, value)
+                else:
+                    combined[key] = value
+                    new.add(key)
+        return combined
 
-    async def check(self) -> _responses.Check:
+    async def check(self) -> responses.Check:
         if self._info:
             return self._info
         response = await self._request("check")
-        return _responses.Check.model_validate(response)
+        return responses.Check.model_validate(response)
 
-    async def node(self) -> _responses.Node:
+    async def node(self) -> responses.Node:
         response = await self._request("node")
-        return _responses.Node.model_validate(response)
+        return responses.Node.model_validate(response)
 
-    async def verify_token(self) -> _responses.VerifyToken:
-        response = await self._request("tokens/verify", token=self._token)
+    async def verify_token(self) -> responses.VerifyToken:
+        response = await self._request("tokens/verify", token=self.token)
         try:
-            resp = _responses.VerifyToken.model_validate(response)
+            resp = responses.VerifyToken.model_validate(response)
         except ValueError:
             raise ValueError("Invalid Token") from None
         if not resp.success:
             raise ValueError("Invalid Token")
         return resp
 
-    async def get_albums(self) -> _responses.Albums:
-        albums: list[_responses.AlbumItem] = []
+    async def get_albums(self) -> responses.Albums:
+        albums: list[responses.AlbumItem] = []
         for page in itertools.count(0):
             response = await self._request(f"albums/{page}")
             new_albums = response["albums"]
@@ -120,7 +136,7 @@ class BunkrrAPI:
             if new_albums < 50:
                 break
 
-        return _responses.Albums.model_validate({"albums": albums, "count": len(albums)})
+        return responses.Albums.model_validate({"albums": albums, "count": len(albums)})
 
     async def create_album(
         self,
@@ -129,20 +145,25 @@ class BunkrrAPI:
         description: str = "",
         public: bool = True,
         download: bool = True,
-    ) -> _responses.CreateAlbum:
+    ) -> responses.CreateAlbum:
         response = await self._request(
-            "albums", name=name, description=description, public=public, download=download
+            "albums",
+            name=name,
+            description=description,
+            public=public,
+            download=download,
         )
-        return _responses.CreateAlbum.model_validate(response)
+        return responses.CreateAlbum.model_validate(response)
 
     async def direct_upload(
         self, file: File, server: URL, album_id: str | None = None
-    ) -> _responses.UploadResponse:
+    ) -> responses.UploadResponse:
         file.album_id = album_id = file.album_id or album_id
-        assert file.size <= self._info.maxSize
+        info = await self.check()
+        assert file.size <= info.maxSize
         try:
             async with aiofiles.open(file.path, "rb") as file_data:
-                chunk_data = await file_data.read(self._chunk_size)
+                chunk_data = await file_data.read(self.chunk_size)
 
             form = FormData()
             form.add_field(
@@ -154,14 +175,14 @@ class BunkrrAPI:
         except Exception as e:
             raise FileUploadError(file) from e
 
-        result = _responses.UploadResponse.model_validate(response)
+        result = responses.UploadResponse.model_validate(response)
         if not result.success:
             raise FileUploadError(file)
         return result
 
     async def upload_chunk(self, file: File, server: URL, chunk: Chunk) -> None:
         try:
-            form = self._create_chunk_dataform(file, chunk)
+            form = self._create_chunk_form(file, chunk)
             result = await self._request(server / "upload", form=form)
         except Exception as e:
             raise ChunkUploadError(file, chunk) from e
@@ -169,13 +190,13 @@ class BunkrrAPI:
         if not result["success"]:
             raise ChunkUploadError(file, chunk)
 
-    def _create_chunk_dataform(self, file: File, chunk: Chunk) -> FormData:
+    def _create_chunk_form(self, file: File, chunk: Chunk) -> FormData:
         form = FormData()
         form.add_fields(
             ("dzuuid", file.uuid),
             ("dzchunkindex", str(chunk.index)),
             ("dztotalfilesize", str(file.size)),
-            ("dzchunksize", str(self._chunk_size)),
+            ("dzchunksize", str(self.chunk_size)),
             ("dztotalchunkcount", str(chunk.total)),
             ("dzchunkbyteoffset", str(chunk.offset)),
         )
@@ -189,7 +210,7 @@ class BunkrrAPI:
 
     async def finish_chunks(
         self, file: File, server: URL, album_id: str | None = None
-    ) -> _responses.UploadResponse:
+    ) -> responses.UploadResponse:
         file.album_id = album_id = file.album_id or album_id
         payload = {
             "uuid": file.uuid,
@@ -204,15 +225,12 @@ class BunkrrAPI:
                 response = await self._request(server / "upload/finishchunks", files=[payload])
                 break
             except Exception:
-                _logger.exception("")
+                logger.exception("")
                 continue
         else:
             raise FileUploadError(file)
 
-        result = _responses.UploadResponse.model_validate(response)
+        result = responses.UploadResponse.model_validate(response)
         if not result.success:
             raise FileUploadError(file)
         return result
-
-
-__all__ = ["BunkrrAPI"]
