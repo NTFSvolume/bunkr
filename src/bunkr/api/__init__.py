@@ -184,7 +184,6 @@ class BunkrAPI:
             form = _create_chunk_form(file, chunk, self.chunk_size)
             result = await self._request(server / "upload", form=form)
         except Exception as e:
-            logger.exception("")
             raise ChunkUploadError(file, chunk) from e
 
         if not result["success"]:

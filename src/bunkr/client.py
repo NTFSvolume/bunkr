@@ -76,7 +76,7 @@ class BunkrUploader:
         """Upload a single chunk with retry mechanism."""
         for attempt in range(self.config.chunk_retries):
             msg = (
-                f"uploading chunk {chunk.index + 1} of file '{file.original_name}'"
+                f"Uploading chunk {chunk.index + 1} of file '{file.original_name}'"
                 f" (attempt {attempt + 1}/{self.config.chunk_retries})"
             )
             logger.info(msg)
@@ -89,7 +89,7 @@ class BunkrUploader:
                     logger.error(str(e))
                     await asyncio.sleep(self.config.delay)
                     continue
-                raise FileUploadError(file) from e
+                raise FileUploadError(file) from e.__cause__
 
         return False
 
@@ -129,10 +129,9 @@ class BunkrUploader:
                     await asyncio.sleep(self.config.delay)
                     continue
 
-                msg = (
-                    f"Skipping upload of '{file.path}' after {self.config.retries} failed attempts"
-                )
-                logger.error(msg, exc_info=e.__cause__ or e)
+                cause = e.__cause__ or e
+                msg = f"Skipping upload of '{file.path}' after {self.config.retries} failed attempt(s) ({str(cause)[:40]}"
+                logger.error(msg, exc_info=cause)
 
         failed_file_resp = file.as_response()
         return UploadResponse(success=False, files=[failed_file_resp])

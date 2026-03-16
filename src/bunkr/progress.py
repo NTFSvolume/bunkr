@@ -7,6 +7,8 @@ from rich.progress import (
     TransferSpeedColumn,
 )
 
+from bunkr.logger import CONSOLE
+
 
 def new_progress() -> Progress:
     return Progress(
@@ -20,5 +22,7 @@ def new_progress() -> Progress:
         TransferSpeedColumn(),
         "━",
         TimeRemainingColumn(),
+        console=CONSOLE,
         expand=True,
+        transient=True,
     )

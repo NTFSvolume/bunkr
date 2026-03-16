@@ -4,13 +4,10 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import mimetypes
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 from uuid import uuid4
 
 from bunkr.api.responses import FileResponse
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @dataclasses.dataclass(slots=True, frozen=True)
