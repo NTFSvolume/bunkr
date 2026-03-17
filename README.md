@@ -2,8 +2,8 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/bunkr)](https://pypi.org/project/bunkr/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/bunkr?style=flat)](https://pypi.org/project/bunkr/)
-[![linting - Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/NTFSvolume/bunkr-uploader/actions/workflows/ruff.yml)
-[![GitHub License](https://img.shields.io/github/license/NTFSvolume/bunkr-uploader)](https://github.com/NTFSvolume/bunkr-uploader/blob/master/LICENSE)
+[![linting - Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/NTFSvolume/bunkr/actions/workflows/ruff.yml)
+[![GitHub License](https://img.shields.io/github/license/NTFSvolume/bunkr)](https://github.com/NTFSvolume/bunkr/blob/master/LICENSE)
 
 ## Supports
 
