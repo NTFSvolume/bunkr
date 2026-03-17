@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 from typing import Annotated
 
 import yarl
-from pydantic import BaseModel, ByteSize, ConfigDict, HttpUrl, PlainValidator
+from pydantic import BaseModel, ByteSize, HttpUrl, PlainValidator
 
-HttpURL = Annotated[yarl.URL, PlainValidator(lambda x: yarl.URL(str(HttpUrl(x))))]
+HttpURL = Annotated[yarl.URL, PlainValidator(lambda url: yarl.URL(str(HttpUrl(url))))]
 
 
 @dataclasses.dataclass(slots=True)
@@ -17,7 +17,7 @@ class ChunkSize:
 
 
 @dataclasses.dataclass(slots=True)
-class FileIdentifierLength:
+class FileIDLimits:
     min: int
     max: int
     default: int
@@ -42,8 +42,24 @@ class Permissions:
     vvip: bool
 
 
-class _Response(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, defer_build=True)
+@dataclasses.dataclass(slots=True)
+class Album:
+    descriptionHtml: str
+    download: bool
+    editedAt: datetime
+    enabled: bool
+    id: int
+    identifier: str
+    name: str
+    public: bool
+    size: ByteSize
+    timestamp: datetime
+    uploads: int
+    zipGeneratedAt: datetime
+    zipSize: ByteSize | None
+
+
+class _Response(BaseModel, populate_by_name=True, defer_build=True):
     description: str = ""
     success: bool = True
 
@@ -61,32 +77,11 @@ class UploadResponse(_Response):
     files: list[FileResponse] = []
 
 
-class AlbumItem(_Response):
-    descriptionHtml: str
-    download: bool
-    editedAt: datetime
-    enabled: bool
-    id: int
-    identifier: str
-    name: str
-    public: bool
-    size: ByteSize
-    timestamp: datetime
-    uploads: int
-    zipGeneratedAt: datetime
-    zipSize: ByteSize | None
-
-
-class Albums(_Response):
-    albums: list[AlbumItem]
-    count: int
-
-
-class CreateAlbum(_Response):
+class CreateAlbumResponse(_Response):
     id: int
 
 
-class VerifyToken(_Response):
+class VerifyTokenResponse(_Response):
     defaultRetentionPeriod: timedelta
     group: str
     permissions: Permissions
@@ -94,11 +89,11 @@ class VerifyToken(_Response):
     username: str
 
 
-class Info(_Response):
+class InfoResponse(_Response):
     chunkSize: ChunkSize
     defaultTemporaryUploadAge: int
     enableUserAccounts: bool
-    fileIdentifierLength: FileIdentifierLength
+    fileIdentifierLength: FileIDLimits
     maintenance: bool
     maxSize: ByteSize
     private: bool
@@ -106,5 +101,5 @@ class Info(_Response):
     temporaryUploadAges: list[int]
 
 
-class Node(_Response):
+class NodeResponse(_Response):
     url: HttpURL

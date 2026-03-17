@@ -25,7 +25,7 @@ CONSOLE = Console(
         }
     )
 )
-_ROTATE = bool = True
+_ROTATE: bool = True
 
 
 def utc_now() -> datetime.datetime:

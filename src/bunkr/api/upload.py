@@ -9,16 +9,24 @@ from uuid import uuid4
 
 from bunkr.api.responses import FileResponse
 
+_MAX_FILENAME_LENGTH: int = 240
 
-@dataclasses.dataclass(slots=True, frozen=True)
+
+def _truncate_name(path: Path) -> str:
+    if len(path.name) <= _MAX_FILENAME_LENGTH:
+        return path.name
+
+    max_bytes = _MAX_FILENAME_LENGTH - len(path.suffix) - 2
+    new_stem = path.name.encode("utf-8")[:max_bytes].decode("utf-8", "ignore")
+    return f"{new_stem}..{path.suffix}"
+
+
+@dataclasses.dataclass(slots=True, eq=False)
 class Chunk:
-    data: bytes | memoryview[int]
+    data: bytes | memoryview[int] | bytearray
     index: int
     total: int
     offset: int
-
-
-_MAX_FILENAME_LENGTH: int = 240
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -36,21 +44,14 @@ class FileUpload:
     upload_success: bool = dataclasses.field(init=False, default=False)
 
     @staticmethod
-    def from_path(path: Path) -> FileUpload:
-        original_name = upload_name = path.name
-
-        if len(upload_name) > _MAX_FILENAME_LENGTH:
-            max_stem_length = _MAX_FILENAME_LENGTH - len(path.suffix) - 2
-            new_stem = upload_name[:max_stem_length] + ".."
-            upload_name = f"{new_stem}.{path.suffix}"
-
+    def create(path: Path, size: int) -> FileUpload:
         return FileUpload(
             path=path,
-            original_name=original_name,
-            upload_name=upload_name,
-            file_path_MD5=hashlib.md5(str(path).encode("utf-8")).hexdigest(),
+            original_name=path.name,
+            upload_name=_truncate_name(path),
+            file_path_MD5=hashlib.md5(path.as_posix().encode("utf-8")).hexdigest(),
             file_name_MD5=hashlib.md5(path.name.encode("utf-8")).hexdigest(),
-            size=path.stat().st_size,
+            size=size,
             mimetype=mimetypes.guess_type(path)[0] or "application/octet-stream",
             uuid=str(uuid4()),
         )

@@ -8,14 +8,23 @@ from typing import Any, Self
 
 from aiohttp import ClientSession, ClientTimeout, FormData
 from multidict import CIMultiDict
+from pydantic.type_adapter import TypeAdapter
 from yarl import URL
 
-from bunkr.api import responses
 from bunkr.api.errors import ChunkUploadError, FileUploadError
-from bunkr.api.file import Chunk, FileUpload
+from bunkr.api.responses import (
+    Album,
+    CreateAlbumResponse,
+    InfoResponse,
+    NodeResponse,
+    UploadResponse,
+    VerifyTokenResponse,
+)
+from bunkr.api.upload import Chunk, FileUpload
 
 _API_ENTRYPOINT = URL("https://dash.bunkr.cr/api/")
 _SEMAPHORE = asyncio.Semaphore(50)
+_parse_albums = TypeAdapter(list[Album]).validate_python
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +34,19 @@ class BunkrAPI:
     token: str
     chunk_size: int = 0
     _session: ClientSession | None = dataclasses.field(init=False, default=None)
-    _info: responses.Info | None = dataclasses.field(init=False, default=None)
+    _info: InfoResponse | None = dataclasses.field(init=False, default=None)
 
     async def connect(self) -> None:
         info = await self.check()
         self.chunk_size = self.chunk_size or info.chunkSize.max
-        assert 0 < self.chunk_size <= info.chunkSize.max
+        if self.chunk_size > info.chunkSize.max:
+            msg = f"Chunk size is too high. Using max chunksize ({info.chunkSize.max.human_readable(decimal=True)})"
+            logger.warning(msg)
+            self.chunk_size = info.chunkSize.max
         _ = await self.verify_token()
 
     async def __aenter__(self) -> Self:
+        await self.connect()
         return self
 
     async def __aexit__(self, *_: Any) -> None:
@@ -86,7 +99,7 @@ class BunkrAPI:
                 "headers": dict(resp.headers),
                 "data": data,
             }
-            logger.debug(f"response: \n {json_dumps(record, indent=4, default=str)}")
+            logger.debug(json_dumps(record, indent=4, default=str))
 
             return data
 
@@ -104,36 +117,36 @@ class BunkrAPI:
                     new.add(key)
         return combined
 
-    async def check(self) -> responses.Info:
+    async def check(self) -> InfoResponse:
         if not self._info:
             response = await self._request("check")
-            self._info = responses.Info.model_validate(response)
+            self._info = InfoResponse.model_validate(response)
         return self._info
 
-    async def node(self) -> responses.Node:
+    async def node(self) -> NodeResponse:
         response = await self._request("node")
-        return responses.Node.model_validate(response)
+        return NodeResponse.model_validate(response)
 
-    async def verify_token(self) -> responses.VerifyToken:
+    async def verify_token(self) -> VerifyTokenResponse:
         response = await self._request("tokens/verify", token=self.token)
         try:
-            resp = responses.VerifyToken.model_validate(response)
+            resp = VerifyTokenResponse.model_validate(response)
         except ValueError:
             raise ValueError("Invalid Token") from None
         if not resp.success:
             raise ValueError("Invalid Token")
         return resp
 
-    async def get_albums(self) -> responses.Albums:
-        albums: list[responses.AlbumItem] = []
+    async def get_albums(self) -> list[Album]:
+        albums: list[Album] = []
         for page in itertools.count(0):
             response = await self._request(f"albums/{page}")
-            new_albums = response["albums"]
+            new_albums = _parse_albums(response["albums"])
             albums.extend(new_albums)
-            if new_albums < 50:
+            if len(new_albums) < 50:
                 break
 
-        return responses.Albums.model_validate({"albums": albums, "count": len(albums)})
+        return albums
 
     async def create_album(
         self,
@@ -142,7 +155,7 @@ class BunkrAPI:
         description: str = "",
         public: bool = True,
         download: bool = True,
-    ) -> responses.CreateAlbum:
+    ) -> CreateAlbumResponse:
         response = await self._request(
             "albums",
             name=name,
@@ -150,14 +163,14 @@ class BunkrAPI:
             public=public,
             download=download,
         )
-        return responses.CreateAlbum.model_validate(response)
+        return CreateAlbumResponse.model_validate(response)
 
     async def direct_upload(
         self,
         file: FileUpload,
         server: URL,
         album_id: str | None = None,
-    ) -> responses.UploadResponse:
+    ) -> UploadResponse:
         file.album_id = album_id = file.album_id or album_id
         try:
             chunk_data = await asyncio.to_thread(file.path.read_bytes)
@@ -174,7 +187,7 @@ class BunkrAPI:
         except Exception as e:
             raise FileUploadError(file) from e
 
-        result = responses.UploadResponse.model_validate(response)
+        result = UploadResponse.model_validate(response)
         if not result.success:
             raise FileUploadError(file)
         return result
@@ -191,7 +204,7 @@ class BunkrAPI:
 
     async def finish_chunks(
         self, file: FileUpload, server: URL, album_id: str | None = None
-    ) -> responses.UploadResponse:
+    ) -> UploadResponse:
         file.album_id = album_id = file.album_id or album_id
 
         for _ in range(2):
@@ -216,7 +229,7 @@ class BunkrAPI:
         else:
             raise FileUploadError(file)
 
-        result = responses.UploadResponse.model_validate(response)
+        result = UploadResponse.model_validate(response)
         if not result.success:
             raise FileUploadError(file)
         return result
