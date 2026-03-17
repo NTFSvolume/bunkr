@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass(slots=True)
 class File:
-    id: str
+    id: int
     name: str
     original: str
     slug: str
@@ -48,13 +48,18 @@ class File:
             src = src.with_host(src.host.replace("i-", ""))
         self.src = src
 
+    def __json__(self) -> dict[str, Any]:
+        me = dataclasses.asdict(self)
+        me["timestamp"] = str(self.timestamp)
+        if self.src:
+            me["src"] = str(self.src)
+        return me
+
 
 _translation_map = MappingProxyType(
     {f" {field.name}: ": f'"{field.name}": ' for field in dataclasses.fields(File)}
 )
-_escape_file_attrs = re.compile(
-    "|".join(sorted(_translation_map.keys(), key=len, reverse=True))
-).sub
+_escape_attrs = re.compile("|".join(sorted(_translation_map.keys(), key=len, reverse=True))).sub
 
 
 def _fix_unicode(value: Any) -> Any:
@@ -64,7 +69,7 @@ def _fix_unicode(value: Any) -> Any:
 
 
 def _decode_files(text: str) -> Generator[File]:
-    content = _escape_file_attrs(lambda m: _translation_map[m.group(0)], text.replace("\\'", "'"))
+    content = _escape_attrs(lambda m: _translation_map[m.group(0)], text.replace("\\'", "'"))
 
     file: dict[str, Any]
     for file in json.loads(content):
@@ -97,12 +102,17 @@ class Album:
         return cls(id_, slug, name, tuple(files))
 
     def __json__(self) -> dict[str, Any]:
-        return dataclasses.asdict(self)
+        return dict(  # noqa: C408
+            id=self.id,
+            slug=self.slug,
+            name=self.name,
+            files=tuple(file.__json__() for file in self.files),
+        )
 
     def __str__(self) -> str:
         import json
 
-        return json.dumps(self.__json__(), indent=2, ensure_ascii=False, default=str)
+        return json.dumps(self.__json__(), indent=2, ensure_ascii=False)
 
 
 _IMAGE_EXTS = frozenset(
