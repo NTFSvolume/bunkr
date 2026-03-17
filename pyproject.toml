@@ -26,7 +26,7 @@ description = "Async Bunkr uploader"
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.1.3"
+version = "0.1.4"
 
 [project.scripts]
 bunkr = "bunkr.__main__:app"

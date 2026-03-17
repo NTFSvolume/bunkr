@@ -11,10 +11,10 @@ from multidict import CIMultiDict
 from pydantic.type_adapter import TypeAdapter
 from yarl import URL
 
-from bunkr.api.album import Album
+from bunkr.api.album import PublicAlbum
 from bunkr.api.errors import ChunkUploadError, FileUploadError
 from bunkr.api.responses import (
-    AlbumResponse,
+    Album,
     CreateAlbumResponse,
     InfoResponse,
     NodeResponse,
@@ -25,7 +25,7 @@ from bunkr.api.upload import Chunk, FileUpload
 
 _API_ENTRYPOINT = URL("https://dash.bunkr.cr/api/")
 _SEMAPHORE = asyncio.Semaphore(50)
-_parse_albums = TypeAdapter(list[AlbumResponse]).validate_python
+_parse_albums = TypeAdapter(list[Album]).validate_python
 
 logger = logging.getLogger(__name__)
 
@@ -147,13 +147,13 @@ class BunkrAPI:
             raise ValueError("Invalid Token")
         return resp
 
-    async def albums(self) -> list[AlbumResponse]:
-        albums: list[AlbumResponse] = []
+    async def albums(self) -> list[Album]:
+        albums: list[Album] = []
         async for new_albums in self.iter_albums():
             albums.extend(new_albums)
         return albums
 
-    async def iter_albums(self) -> AsyncGenerator[list[AlbumResponse]]:
+    async def iter_albums(self) -> AsyncGenerator[list[Album]]:
         for page in itertools.count(0):
             response = await self._request_json(f"albums/{page}")
             new_albums = _parse_albums(response["albums"])
@@ -161,7 +161,7 @@ class BunkrAPI:
             if len(new_albums) < 50:
                 break
 
-    async def album(self, url_or_slug: URL | str, /) -> Album:
+    async def public_album(self, url_or_slug: URL | str, /) -> PublicAlbum:
         url = (
             URL(f"https://bunkr.cr/a/{url_or_slug}", encoded="%" in url_or_slug)
             if isinstance(url_or_slug, str) and "/" not in url_or_slug
@@ -170,7 +170,7 @@ class BunkrAPI:
         async with self.session.get(url.with_query(advanced=1)) as resp:
             page = await resp.text()
 
-        return Album.parse(url.name, page)
+        return PublicAlbum.parse(url.name, page)
 
     async def create_album(
         self,
@@ -191,29 +191,28 @@ class BunkrAPI:
 
     async def upload(
         self,
-        file: FileUpload,
+        upload: FileUpload,
         server: URL,
         album_id: str | None = None,
     ) -> UploadResponse:
-        file.album_id = album_id = file.album_id or album_id
+        upload.album_id = upload.album_id or album_id
         try:
-            chunk_data = await asyncio.to_thread(file.path.read_bytes)
             form = FormData()
             form.add_field(
                 "files[]",
-                chunk_data,
-                filename=file.path.name,
-                content_type=file.mimetype,
+                value=await asyncio.to_thread(upload.path.read_bytes),
+                filename=upload.upload_name,
+                content_type=upload.mimetype,
             )
-            headers = {"albumid": album_id} if album_id else None
+            headers = {"albumid": upload.album_id} if upload.album_id else None
             response = await self._request_json(server / "upload", form=form, headers=headers)
 
         except Exception as e:
-            raise FileUploadError(file) from e
+            raise FileUploadError(upload) from e
 
         result = UploadResponse.model_validate(response)
         if not result.success:
-            raise FileUploadError(file)
+            raise FileUploadError(upload)
         return result
 
     async def upload_chunk(self, file: FileUpload, server: URL, chunk: Chunk) -> None:
@@ -238,7 +237,7 @@ class BunkrAPI:
                     files=[
                         {
                             "uuid": file.uuid,
-                            "original": file.original_name,
+                            "original": file.name,
                             "type": file.mimetype,
                             "albumid": album_id or None,
                             "filelength": None,
@@ -259,6 +258,17 @@ class BunkrAPI:
         if not result.success:
             raise FileUploadError(file)
         return result
+
+
+class ApiProxy:
+    _api: BunkrAPI  # pyright: ignore[reportUninitializedInstanceVariable]
+
+    async def __aenter__(self) -> Self:
+        _ = await self._api.__aenter__()
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self._api.__aexit__(*args)
 
 
 def _create_chunk_form(file: FileUpload, chunk: Chunk, chunk_size: int) -> FormData:

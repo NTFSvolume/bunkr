@@ -43,7 +43,7 @@ class Permissions:
 
 
 @dataclasses.dataclass(slots=True)
-class AlbumResponse:
+class Album:
     descriptionHtml: str
     download: bool
     editedAt: datetime

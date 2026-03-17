@@ -81,7 +81,7 @@ def _decode_files(text: str) -> Generator[File]:
 
 
 @dataclasses.dataclass(slots=True, order=True)
-class Album:
+class PublicAlbum:
     id: int
     slug: str
     name: str

@@ -7,9 +7,9 @@ from rich.traceback import install
 
 from bunkr import __package_name__, __version__
 from bunkr.api import BunkrAPI
-from bunkr.client import BunkrUploader
 from bunkr.config import Config
 from bunkr.logger import CONSOLE, setup_logger
+from bunkr.uploader import BunkrUploader
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ async def _upload(path: Path, recurse: bool, config: Config) -> None:
             results = await client.upload(path, recurse=recurse)
             for result in results:
                 info = f"success: {result.result.success}, url: {result.result.files[0].url}"
-                logger.info(f"{result.file.original_name}: {info}")
+                logger.info(f"{result.file.name}: {info}")
 
 
 app = App(
@@ -54,7 +54,7 @@ async def upload(
 async def album(url_or_slug: str, /) -> None:
     """Get all files of a public album as a json response"""
     async with BunkrAPI() as api:
-        album = await api.album(url_or_slug)
+        album = await api.public_album(url_or_slug)
         CONSOLE.print(str(album))
 
 

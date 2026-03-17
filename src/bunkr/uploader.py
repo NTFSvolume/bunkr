@@ -4,14 +4,14 @@ import asyncio
 import dataclasses
 import datetime  # noqa: TC003
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 from pydantic import TypeAdapter
 
 from bunkr import aio, progress
-from bunkr.api import BunkrAPI
+from bunkr.api import ApiProxy, BunkrAPI
 from bunkr.api.errors import ChunkUploadError, FileUploadError
-from bunkr.api.responses import UploadResponse
+from bunkr.api.responses import FileResponse, UploadResponse
 from bunkr.api.upload import Chunk, FileUpload
 from bunkr.logger import utc_now
 
@@ -47,7 +47,7 @@ class FileUploadResult:
 
 
 @dataclasses.dataclass(slots=True)
-class BunkrUploader:
+class BunkrUploader(ApiProxy):
     config: Config
     upload_callback: Callable[[FileUploadResult], None] = lambda _: None
 
@@ -58,39 +58,32 @@ class BunkrUploader:
         self._api = BunkrAPI(self.config.token, self.config.chunk_size or 0)
         self._sem = asyncio.BoundedSemaphore(self.config.concurrent_uploads)
 
-    async def __aenter__(self) -> Self:
-        _ = await self._api.__aenter__()
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        await self._api.__aexit__(*args)
-
     async def _direct_upload(self, upload: FileUpload, server: URL) -> UploadResponse:
-        with progress.new_upload(upload.original_name, upload.size) as hook:
+        with progress.new_upload(upload.name, upload.size) as hook:
             result = await self._api.upload(upload, server)
             hook.advance(upload.size)
             return result
 
     async def _chunked_upload(self, upload: FileUpload, server: URL) -> UploadResponse:
-        with progress.new_upload(upload.original_name, upload.size) as hook:
+        with progress.new_upload(upload.name, upload.size) as hook:
             chunk_gen = _iter_chunked(upload, self._api.chunk_size)
             try:
                 async for chunk in chunk_gen:
-                    _ = await self._upload_chunk(upload, server, chunk)
+                    _ = await self.__upload_chunk(upload, server, chunk)
                     hook.advance(len(chunk.data))
             finally:
                 await chunk_gen.aclose()
 
             return await self._api.finish_chunks(upload, server)
 
-    async def _upload_chunk(self, upload: FileUpload, server: URL, chunk: Chunk) -> None:
+    async def __upload_chunk(self, upload: FileUpload, server: URL, chunk: Chunk) -> None:
         """Upload a single chunk with retry mechanism."""
         for attempt in range(self.config.chunk_retries):
             msg = (
-                f"Uploading chunk {chunk.index + 1} of file '{upload.original_name}'"
+                f"Uploading chunk {chunk.index + 1} of file '{upload.name}'"
                 f" (attempt {attempt + 1}/{self.config.chunk_retries})"
             )
-            logger.info(msg)
+            logger.debug(msg)
             try:
                 await self._api.upload_chunk(upload, server, chunk)
 
@@ -123,7 +116,7 @@ class BunkrUploader:
                 msg = f"Skipping upload of '{upload.path}' after {self.config.retries} failed attempt(s) ({str(cause)[:40]}"
                 logger.error(msg, exc_info=cause)
 
-        return UploadResponse(success=False, files=[upload.as_failed_resp()])
+        return UploadResponse(success=False, files=[FileResponse(name=upload.uuid, url=None)])
 
     async def _request_upload_server(self) -> URL:
         node_response = await self._api.node()
@@ -134,10 +127,14 @@ class BunkrUploader:
 
     async def _get_album_id(self, album_name: str) -> int:
         album_name_ci = album_name.casefold()
-        async for albums in self._api.iter_albums():
-            for album in albums:
-                if album.name.casefold() == album_name_ci:
-                    return album.id
+        iter_albums = self._api.iter_albums()
+        try:
+            async for albums in iter_albums:
+                for album in albums:
+                    if album.name.casefold() == album_name_ci:
+                        return album.id
+        finally:
+            await iter_albums.aclose()
 
         logger.info(f"Album '{album_name}' does not exists, creating")
         album = await self._api.create_album(album_name, description=album_name)
@@ -157,7 +154,7 @@ class BunkrUploader:
                 size = (await asyncio.to_thread(path.stat)).st_size
 
                 if size > info.maxSize:
-                    msg = f"File '{path}' ({size:,}) is bigger than max file size: {info.maxSize:,} ({human_max_size})"
+                    msg = f"File '{path}' ({size:,} B) is bigger than max file size: {info.maxSize:,} B ({human_max_size})"
                     logger.error(msg)
                     return
 
@@ -238,6 +235,5 @@ async def _iter_chunked(upload: FileUpload, chunk_size: int) -> AsyncGenerator[C
     async with aio.open(upload.path, mode="rb") as fp:
         while data := await fp.read(chunk_size):
             offset = chunk_size * index
-            mem_view = memoryview(data)
-            yield Chunk(mem_view, index, n_chunks, offset)
+            yield Chunk(data, index, n_chunks, offset)
             index += 1
