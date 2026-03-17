@@ -133,11 +133,14 @@ class BunkrUploader:
         return node_response.url.with_path("/api/")
 
     async def _get_album_id(self, album_name: str) -> int:
-        albums = await self._api.get_albums()
-        album = next((album for album in albums if album.name == album_name), None)
-        if not album:
-            logger.info(f"Album '{album_name}' does not exists, creating")
-            album = await self._api.create_album(album_name, description=album_name)
+        album_name_ci = album_name.casefold()
+        async for albums in self._api.iter_albums():
+            for album in albums:
+                if album.name.casefold() == album_name_ci:
+                    return album.id
+
+        logger.info(f"Album '{album_name}' does not exists, creating")
+        album = await self._api.create_album(album_name, description=album_name)
         return album.id
 
     async def _prepare_uploads(self, path: Path, *, recurse: bool) -> tuple[FileUpload, ...]:
