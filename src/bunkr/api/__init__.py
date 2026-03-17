@@ -50,9 +50,9 @@ class BunkrAPI:
         return self
 
     async def __aexit__(self, *_: Any) -> None:
-        await self.close()
+        await self.aclose()
 
-    async def close(self) -> None:
+    async def aclose(self) -> None:
         if self._session is not None:
             await self._session.close()
 

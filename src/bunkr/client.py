@@ -5,7 +5,6 @@ import dataclasses
 import datetime  # noqa: TC003
 import logging
 from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from pydantic import TypeAdapter
@@ -61,11 +60,11 @@ class BunkrUploader:
         self._sem = asyncio.BoundedSemaphore(self.config.concurrent_uploads)
 
     async def __aenter__(self) -> Self:
-        await self._api.connect()
+        _ = await self._api.__aenter__()
         return self
 
-    async def __aexit__(self, *_: Any) -> None:
-        await self._api.close()
+    async def __aexit__(self, *args: Any) -> None:
+        await self._api.__aexit__(*args)
 
     async def _upload_chunk(self, upload: FileUpload, server: URL, chunk: Chunk) -> bool:
         """Upload a single chunk with retry mechanism."""
@@ -88,7 +87,7 @@ class BunkrUploader:
 
         return False
 
-    async def _chunked_read(self, upload: FileUpload) -> AsyncIterator[Chunk]:
+    async def _iter_chunked(self, upload: FileUpload) -> AsyncIterator[Chunk]:
         """Iterate over file chunks."""
         n_chunks = (upload.size + self._api.chunk_size - 1) // self._api.chunk_size
         index = 0
@@ -109,19 +108,19 @@ class BunkrUploader:
                 if upload.size <= info.chunkSize.max:
                     return await self._api.direct_upload(upload, server)
 
-                async for chunk in self._chunked_read(upload):
+                async for chunk in self._iter_chunked(upload):
                     _ = await self._upload_chunk(upload, server, chunk)
 
                 return await self._api.finish_chunks(upload, server)
 
             except FileUploadError as e:
+                cause = e.__cause__ or e
                 if attempt < self.config.retries - 1:
-                    msg = f"{e.__cause__ or e} (attempt {attempt + 1}/{self.config.retries})"
+                    msg = f"{cause} (attempt {attempt + 1}/{self.config.retries})"
                     logger.error(msg)
                     await asyncio.sleep(self.config.delay)
                     continue
 
-                cause = e.__cause__ or e
                 msg = f"Skipping upload of '{upload.path}' after {self.config.retries} failed attempt(s) ({str(cause)[:40]}"
                 logger.error(msg, exc_info=cause)
 
@@ -139,11 +138,11 @@ class BunkrUploader:
         albums = await self._api.get_albums()
         album = next((album for album in albums if album.name == album_name), None)
         if not album:
-            logger.info(f"album '{album_name}' does not exists, creating")
+            logger.info(f"Album '{album_name}' does not exists, creating")
             album = await self._api.create_album(album_name, description=album_name)
         return album.id
 
-    async def _get_files_to_upload(self, path: Path, *, recurse: bool) -> tuple[FileUpload, ...]:
+    async def _prepare_uploads(self, path: Path, *, recurse: bool) -> tuple[FileUpload, ...]:
         files = await asyncio.to_thread(_get_files, path, recurse=recurse)
         info = await self._api.check()
         human_max_size = info.maxSize.human_readable(decimal=True)
@@ -174,7 +173,7 @@ class BunkrUploader:
     async def upload(
         self, path: Path, *, recurse: bool = False, album: str | None = None
     ) -> list[FileUploadResult]:
-        files_to_upload = await self._get_files_to_upload(path, recurse=recurse)
+        files_to_upload = await self._prepare_uploads(path, recurse=recurse)
         if not files_to_upload:
             logger.error("No files left to upload")
             return []
