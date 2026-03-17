@@ -49,7 +49,7 @@ async def setup_logger() -> AsyncGenerator[Callable[[object], None]]:
         rich_tracebacks=False,
         tracebacks_show_locals=False,
         show_path=False,
-        level=logging.WARNING,
+        level=logging.INFO,
         console=CONSOLE,
     )
     console_handler.setFormatter(NoTracebackFormatter())

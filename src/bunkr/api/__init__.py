@@ -111,9 +111,11 @@ class BunkrAPI:
 
     def _prepare_json_headers(self, headers: Mapping[str, str] | None = None) -> CIMultiDict[str]:
         """Add default headers and transform it to CIMultiDict"""
-        if not self._token:
-            raise RuntimeError
-        combined = CIMultiDict(token=self._token, Accept="application/json, text/plain")
+
+        combined = CIMultiDict(Accept="application/json, text/plain")
+        if self._token:
+            combined["token"] = self._token
+
         if headers:
             headers = CIMultiDict(headers)
             new: set[str] = set()
@@ -162,8 +164,8 @@ class BunkrAPI:
     async def album(self, url_or_slug: URL | str, /) -> Album:
         url = (
             URL(f"https://bunkr.cr/a/{url_or_slug}", encoded="%" in url_or_slug)
-            if isinstance(url_or_slug, str)
-            else url_or_slug
+            if isinstance(url_or_slug, str) and "/" not in url_or_slug
+            else URL(url_or_slug)
         )
         async with self.session.get(url.with_query(advanced=1)) as resp:
             page = await resp.text()

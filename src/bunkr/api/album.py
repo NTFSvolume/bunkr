@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import json
 import re
 from pathlib import Path
@@ -17,12 +18,12 @@ if TYPE_CHECKING:
 class File:
     id: str
     name: str
-    origina: str
+    original: str
     slug: str
     type: str
     extension: str
     size: int
-    timestamp: int
+    timestamp: datetime.datetime
     thumbnail: str
     cdnEndpoint: str  # noqa: N815
 
@@ -66,7 +67,11 @@ def _decode_files(text: str) -> Generator[File]:
 
     file: dict[str, Any]
     for file in json.loads(content):
-        yield File(**{k: _fix_unicode(v) for k, v in file.items()})
+        file = {k: _fix_unicode(v) for k, v in file.items()}
+        timestamp = datetime.datetime.strptime(file.pop("timestamp"), "%H:%M:%S %d/%m/%Y").replace(
+            tzinfo=datetime.UTC
+        )
+        yield File(timestamp=timestamp, **file)
 
 
 @dataclasses.dataclass(slots=True, order=True)
@@ -89,6 +94,14 @@ class Album:
         album_js = extr("window.albumFiles = ", "</script>")
         files = _decode_files(album_js[: album_js.rindex("];") + 1])
         return cls(id_, slug, name, tuple(files))
+
+    def __json__(self):
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        import json
+
+        return json.dumps(self.__json__(), indent=2, ensure_ascii=False, default=str)
 
 
 _IMAGE_EXTS = frozenset(

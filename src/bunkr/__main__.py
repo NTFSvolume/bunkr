@@ -6,6 +6,7 @@ from cyclopts import App, Parameter
 from rich.traceback import install
 
 from bunkr import __package_name__, __version__
+from bunkr.api import BunkrAPI
 from bunkr.client import BunkrUploader
 from bunkr.config import Config
 from bunkr.logger import setup_logger
@@ -47,6 +48,15 @@ async def upload(
 ) -> None:
     """Upload a file or files to bunkr"""
     await _upload(path, recurse, config)
+
+
+@app.command()
+async def album(url_or_slug: str, /) -> None:
+    """Get all files of a public album as a json response"""
+    async with setup_logger():
+        async with BunkrAPI() as api:
+            album = await api.album(url_or_slug)
+            logger.info(f"{album = !s}")
 
 
 if __name__ == "__main__":
