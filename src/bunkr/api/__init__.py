@@ -167,7 +167,7 @@ class BunkrAPI:
             if isinstance(url_or_slug, str) and "/" not in url_or_slug
             else URL(url_or_slug)
         )
-        async with self.session.get(url.with_query(advanced=1)) as resp:
+        async with _SEMAPHORE, self.session.get(url.with_query(advanced=1)) as resp:
             page = await resp.text()
 
         return PublicAlbum.parse(url.name, page)
